@@ -11,7 +11,7 @@ Uses the official [@yotoplay/yoto-sdk](https://github.com/yotoplay/yoto-sdk) and
 - MYO card management — create, update, delete cards and playlists
 - Audio upload — upload MP3/M4A files with automatic transcoding
 - Device listing — see your Yoto players and their status
-- SSE transport — connect from any MCP-compatible client over HTTP
+- Streamable HTTP transport — connect from any MCP-compatible client over HTTP
 
 ## Prerequisites
 
@@ -58,9 +58,8 @@ docker run -d \
 {
   "mcpServers": {
     "yoto-mcp": {
-      "type": "sse",
-      "url": "http://localhost:3100/sse",
-      "description": "Yoto MYO card management — upload audio, manage playlists, list devices"
+      "type": "streamable-http",
+      "url": "http://localhost:3100/mcp"
     }
   }
 }
@@ -72,8 +71,8 @@ docker run -d \
 {
   "mcpServers": {
     "yoto-mcp": {
-      "type": "sse",
-      "url": "http://<your-host>:3100/sse"
+      "type": "streamable-http",
+      "url": "http://<your-host>:3100/mcp"
     }
   }
 }
@@ -85,7 +84,7 @@ docker run -d \
 |----------|----------|---------|-------------|
 | `YOTO_CLIENT_ID` | Yes | — | Developer client ID from dashboard.yoto.dev |
 | `YOTO_CLIENT_SECRET` | Yes | — | Developer client secret |
-| `YOTO_MCP_PORT` | No | `3100` | Port for the SSE server |
+| `YOTO_MCP_PORT` | No | `3100` | Port for the HTTP server |
 | `YOTO_CONFIG_DIR` | No | `~/.config/yoto-mcp` | Directory for account credentials |
 
 ## Available tools
@@ -102,11 +101,6 @@ docker run -d \
 | `yoto_upload_audio` | Upload audio file and wait for transcoding |
 | `yoto_list_devices` | List Yoto player devices |
 | `yoto_list_icons` | List available display icons |
-| `yoto_device_status` | Get device status (battery, playback, volume) |
-| `yoto_device_config` | Get or update device configuration |
-| `yoto_play` | Send playback commands (play/pause/next/prev) |
-| `yoto_set_volume` | Set device volume |
-| `yoto_set_alarm` | Create or update device alarms |
 
 ## Development
 
