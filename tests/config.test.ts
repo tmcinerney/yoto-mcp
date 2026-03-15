@@ -21,6 +21,12 @@ describe('loadConfig', () => {
       yotoClientId: 'test-id',
       yotoClientSecret: 'test-secret',
       configDir: '~/.config/yoto-mcp',
+      auth: {
+        clientId: 'test-id',
+        clientSecret: 'test-secret',
+        authDomain: 'login.yotoplay.com',
+        audience: 'https://api.yotoplay.com',
+      },
     });
   });
 
@@ -34,5 +40,17 @@ describe('loadConfig', () => {
 
     expect(config.port).toBe(4200);
     expect(config.configDir).toBe('/custom/config');
+  });
+
+  it('respects custom auth domain and audience', () => {
+    const config = loadConfig({
+      YOTO_CLIENT_ID: 'test-id',
+      YOTO_CLIENT_SECRET: 'test-secret',
+      YOTO_AUTH_DOMAIN: 'custom-auth.example.com',
+      YOTO_AUDIENCE: 'https://custom-api.example.com',
+    });
+
+    expect(config.auth.authDomain).toBe('custom-auth.example.com');
+    expect(config.auth.audience).toBe('https://custom-api.example.com');
   });
 });

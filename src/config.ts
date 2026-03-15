@@ -1,8 +1,12 @@
+import type { AuthConfig } from './auth/types.js';
+import { AUTH_DEFAULTS } from './auth/types.js';
+
 export interface ServerConfig {
   port: number;
   yotoClientId: string;
   yotoClientSecret: string;
   configDir: string;
+  auth: AuthConfig;
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): ServerConfig {
@@ -21,5 +25,11 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     yotoClientId,
     yotoClientSecret,
     configDir: env.YOTO_CONFIG_DIR ?? '~/.config/yoto-mcp',
+    auth: {
+      clientId: yotoClientId,
+      clientSecret: yotoClientSecret,
+      authDomain: env.YOTO_AUTH_DOMAIN ?? AUTH_DEFAULTS.authDomain,
+      audience: env.YOTO_AUDIENCE ?? AUTH_DEFAULTS.audience,
+    },
   };
 }
