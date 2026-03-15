@@ -1,0 +1,16 @@
+services:
+  yoto-mcp:
+    build: .
+    ports:
+      - '3100:3100'
+    environment:
+      - YOTO_CLIENT_ID=${YOTO_CLIENT_ID}
+      - YOTO_CLIENT_SECRET=${YOTO_CLIENT_SECRET}
+      - YOTO_MCP_PORT=3100
+      - YOTO_CONFIG_DIR=/config
+    volumes:
+      - yoto-config:/config
+    restart: unless-stopped
+
+volumes:
+  yoto-config:
