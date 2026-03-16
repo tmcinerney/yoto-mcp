@@ -1,0 +1,63 @@
+{
+  "summary": {
+    "total_files": 5,
+    "valid_files": 0,
+    "skipped_files": 5,
+    "warning_files": 0,
+    "error_count": 5,
+    "warning_count": 0
+  },
+  "skipped": [
+    {
+      "file": "CHANGELOG.md",
+      "doc_type": "",
+      "reasons": [
+        {
+          "check": "no_frontmatter",
+          "message": "File has no YAML frontmatter"
+        }
+      ]
+    },
+    {
+      "file": "CLAUDE.md",
+      "doc_type": "",
+      "reasons": [
+        {
+          "check": "no_frontmatter",
+          "message": "File has no YAML frontmatter"
+        }
+      ]
+    },
+    {
+      "file": "CONTRIBUTING.md",
+      "doc_type": "",
+      "reasons": [
+        {
+          "check": "no_frontmatter",
+          "message": "File has no YAML frontmatter"
+        }
+      ]
+    },
+    {
+      "file": "DEPLOY.md",
+      "doc_type": "",
+      "reasons": [
+        {
+          "check": "no_frontmatter",
+          "message": "File has no YAML frontmatter"
+        }
+      ]
+    },
+    {
+      "file": "README.md",
+      "doc_type": "",
+      "reasons": [
+        {
+          "check": "no_frontmatter",
+          "message": "File has no YAML frontmatter"
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}
