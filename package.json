@@ -1,6 +1,6 @@
 {
   "name": "yoto-mcp",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "MCP server for the Yoto API — manage MYO cards, upload audio, control devices. Multi-account support.",
   "type": "module",
   "bin": {
@@ -24,7 +24,7 @@
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm run test",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "keywords": [
     "mcp",

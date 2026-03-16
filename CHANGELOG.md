@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-03-16
+
+### Fixed
+- Docker build failure: `prepare` script now gracefully skips when husky isn't installed (`--omit=dev` in production builds)
+
 ## [0.5.3] - 2026-03-16
 
 ### Changed
