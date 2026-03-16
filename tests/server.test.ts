@@ -15,10 +15,7 @@ describe('createServer', () => {
 
     // Verify the source file imports/reads version from package.json
     // rather than using a hardcoded string literal
-    const serverSource = await readFile(
-      join(__dirname, '..', 'src', 'server.ts'),
-      'utf-8',
-    );
+    const serverSource = await readFile(join(__dirname, '..', 'src', 'server.ts'), 'utf-8');
 
     // The source should import version from package.json (or a constants module
     // that reads it). It should NOT contain a hardcoded version string literal

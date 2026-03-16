@@ -88,7 +88,9 @@ export async function handleUploadAudio(
     // AIDEV-NOTE: Size guard prevents loading huge files into memory
     const fileStat = await stat(normalizedPath);
     if (fileStat?.size > MAX_FILE_SIZE_BYTES) {
-      return toolError(`File too large (${Math.round(fileStat.size / 1024 / 1024)}MB). Maximum is ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB.`);
+      return toolError(
+        `File too large (${Math.round(fileStat.size / 1024 / 1024)}MB). Maximum is ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB.`,
+      );
     }
 
     const fileBuffer = await readFile(normalizedPath);

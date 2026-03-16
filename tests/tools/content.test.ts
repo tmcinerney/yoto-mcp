@@ -240,9 +240,7 @@ describe('handleUpdateCard — read-merge-write', () => {
     const partialCard = {
       content: {
         editKey: 'edit-2',
-        chapters: [
-          { key: 'ch-1', title: 'Chapter 1 Updated', tracks: [] },
-        ],
+        chapters: [{ key: 'ch-1', title: 'Chapter 1 Updated', tracks: [] }],
       },
     } as unknown as YotoJson;
 

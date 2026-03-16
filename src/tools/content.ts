@@ -44,7 +44,9 @@ export async function handleUpdateCard(
     // AIDEV-NOTE: Reject conflicting cardId in payload to prevent cross-card updates
     const incoming = args.card as unknown as Record<string, unknown>;
     if (incoming.cardId && incoming.cardId !== args.cardId) {
-      return toolError(`cardId in card JSON ('${incoming.cardId}') does not match cardId parameter ('${args.cardId}')`);
+      return toolError(
+        `cardId in card JSON ('${incoming.cardId}') does not match cardId parameter ('${args.cardId}')`,
+      );
     }
 
     // Fetch existing card to merge onto — prevents data loss from partial updates

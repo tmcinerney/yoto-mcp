@@ -93,7 +93,9 @@ export async function handleAuthComplete(
 
     // AIDEV-NOTE: Device code flow always returns refresh_token (unlike refresh grant)
     if (!tokens.refresh_token) {
-      return toolError('Authentication succeeded but no refresh token was returned. Please try again.');
+      return toolError(
+        'Authentication succeeded but no refresh token was returned. Please try again.',
+      );
     }
 
     await store.setAccount({
