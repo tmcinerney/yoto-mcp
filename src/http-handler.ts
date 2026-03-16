@@ -18,7 +18,17 @@ export function createRequestHandler(
     }
 
     if (url.pathname === '/mcp') {
-      await transport.handleRequest(req, res);
+      try {
+        await transport.handleRequest(req, res);
+      } catch (err) {
+        console.error('MCP transport error:', err);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+        }
+        if (!res.writableEnded) {
+          res.end(JSON.stringify({ error: 'Internal server error' }));
+        }
+      }
       return;
     }
 

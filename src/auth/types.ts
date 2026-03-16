@@ -30,7 +30,7 @@ export interface DeviceCodeResponse {
 /** Auth0 token exchange response (success) */
 export interface TokenResponse {
   access_token: string;
-  refresh_token: string;
+  refresh_token?: string; // AIDEV-NOTE: Auth0 doesn't always return this on refresh grant
   token_type: string;
   expires_in: number;
 }

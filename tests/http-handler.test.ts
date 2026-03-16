@@ -72,4 +72,33 @@ describe('createRequestHandler', () => {
 
     expect(res.writeHead).toHaveBeenCalledWith(404);
   });
+
+  it('returns 500 when transport.handleRequest throws', async () => {
+    const transport = createMockTransport();
+    vi.mocked(transport.handleRequest).mockRejectedValue(new Error('Transport blew up'));
+    const handler = createRequestHandler(transport, 3100);
+    const req = createMockReq('/mcp', 'POST');
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+    expect(res.end).toHaveBeenCalled();
+  });
+
+  it('does not crash when transport throws after headers sent', async () => {
+    const transport = createMockTransport();
+    vi.mocked(transport.handleRequest).mockImplementation(async (_req, res) => {
+      res.writeHead(200);
+      throw new Error('Boom after headers');
+    });
+    const handler = createRequestHandler(transport, 3100);
+    const req = createMockReq('/mcp', 'POST');
+    const res = createMockRes();
+    // Simulate headersSent being true after writeHead
+    Object.defineProperty(res, 'headersSent', { get: () => true });
+
+    // Should not throw — handler catches the error gracefully
+    await expect(handler(req, res)).resolves.toBeUndefined();
+  });
 });

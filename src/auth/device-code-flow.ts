@@ -58,39 +58,48 @@ export async function pollForToken(
 
     await sleep(pollInterval);
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-        client_id: config.clientId,
-        device_code: deviceCode,
-        audience: config.audience,
-      }),
-      signal,
-    });
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          client_id: config.clientId,
+          device_code: deviceCode,
+          audience: config.audience,
+        }),
+        signal,
+      });
 
-    if (response.ok) {
-      const tokens = (await response.json()) as TokenResponse;
-      return { status: 'success', tokens };
-    }
+      if (response.ok) {
+        const tokens = (await response.json()) as TokenResponse;
+        return { status: 'success', tokens };
+      }
 
-    const error = (await response.json()) as TokenErrorResponse;
+      const error = (await response.json()) as TokenErrorResponse;
 
-    switch (error.error) {
-      case 'authorization_pending':
-        // User hasn't authorized yet — keep polling
+      switch (error.error) {
+        case 'authorization_pending':
+          // User hasn't authorized yet — keep polling
+          continue;
+        case 'slow_down':
+          // Back off by 5 seconds per spec
+          pollInterval += 5000;
+          continue;
+        case 'expired_token':
+          return { status: 'expired', message: 'Device code expired. Please try again.' };
+        case 'access_denied':
+          return { status: 'denied', message: 'Authorization was denied by the user.' };
+        default:
+          throw new Error(`Unexpected auth error: ${error.error} — ${error.error_description}`);
+      }
+    } catch (err) {
+      // Network errors (DNS failure, connection reset) — retry until deadline
+      if (err instanceof TypeError || (err instanceof Error && err.message.includes('fetch'))) {
         continue;
-      case 'slow_down':
-        // Back off by 5 seconds per spec
-        pollInterval += 5000;
-        continue;
-      case 'expired_token':
-        return { status: 'expired', message: 'Device code expired. Please try again.' };
-      case 'access_denied':
-        return { status: 'denied', message: 'Authorization was denied by the user.' };
-      default:
-        throw new Error(`Unexpected auth error: ${error.error} — ${error.error_description}`);
+      }
+      // Re-throw non-network errors (unexpected auth errors, abort)
+      throw err;
     }
   }
 

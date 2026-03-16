@@ -118,7 +118,7 @@ export function createServer(ctx?: ToolContext): McpServer {
     'yoto_update_card',
     {
       description:
-        'Update a MYO card content (add/remove/reorder tracks). Pass card as a JSON string.',
+        'Update a MYO card. Fetches existing card and merges your changes — only include fields you want to change. Pass partial card as a JSON string.',
       inputSchema: {
         cardId: z.string().describe('The card ID to update'),
         cardJson: z.string().describe('Full YotoJson card object as a JSON string'),

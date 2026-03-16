@@ -48,7 +48,8 @@ export async function refreshAccount(
     const tokens = await refreshAccessToken(config, account.refreshToken);
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
-    await store.updateTokens(accountId, tokens.access_token, tokens.refresh_token, expiresAt);
+    const newRefreshToken = tokens.refresh_token ?? account.refreshToken;
+    await store.updateTokens(accountId, tokens.access_token, newRefreshToken, expiresAt);
 
     return tokens.access_token;
   } catch (err) {

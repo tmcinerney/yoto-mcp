@@ -19,15 +19,16 @@ export async function handleCreateCard(
   args: CreateCardArgs,
 ): Promise<CallToolResult> {
   try {
-    const card: YotoJson = {
+    // AIDEV-NOTE: title must be top-level for Yoto API. Cast past narrow SDK YotoJson type.
+    const card = {
+      title: args.title,
       content: { chapters: [] },
       metadata: {
-        title: args.title,
         ...(args.author && { author: args.author }),
         ...(args.category && { category: args.category }),
         ...(args.description && { description: args.description }),
       },
-    };
+    } as unknown as YotoJson;
     const created = await sdk.content.updateCard(card);
     return toolResult(created);
   } catch (err) {
@@ -40,7 +41,27 @@ export async function handleUpdateCard(
   args: UpdateCardArgs,
 ): Promise<CallToolResult> {
   try {
-    const updated = await sdk.content.updateCard(args.card);
+    // Fetch existing card to merge onto — prevents data loss from partial updates
+    const existing = (await sdk.content.getCard(args.cardId)) as unknown as Record<string, unknown>;
+    const incoming = args.card as unknown as Record<string, unknown>;
+
+    // Shallow merge: incoming fields override existing, missing fields preserved
+    const merged = {
+      ...existing,
+      ...incoming,
+      content: {
+        ...((existing.content as Record<string, unknown>) ?? {}),
+        ...((incoming.content as Record<string, unknown>) ?? {}),
+      },
+      metadata: {
+        ...((existing.metadata as Record<string, unknown>) ?? {}),
+        ...((incoming.metadata as Record<string, unknown>) ?? {}),
+      },
+      // AIDEV-NOTE: cardId must be in payload for API to update (not create)
+      cardId: args.cardId,
+    } as unknown as YotoJson;
+
+    const updated = await sdk.content.updateCard(merged);
     return toolResult(updated);
   } catch (err) {
     return toolError(`Failed to update card '${args.cardId}': ${(err as Error).message}`);

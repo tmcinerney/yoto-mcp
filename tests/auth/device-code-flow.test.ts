@@ -148,6 +148,39 @@ describe('pollForToken', () => {
       'Unexpected auth error: server_error',
     );
   });
+
+  it('retries on transient network error during polling', async () => {
+    const tokenResponse = {
+      access_token: 'access-123',
+      refresh_token: 'refresh-123',
+      token_type: 'Bearer',
+      expires_in: 86400,
+    };
+
+    vi.mocked(fetch)
+      // First poll: network error (TypeError like "Failed to fetch")
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      // Second poll: still pending
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: 'authorization_pending' }), { status: 403 }),
+      )
+      // Third poll: success
+      .mockResolvedValueOnce(new Response(JSON.stringify(tokenResponse), { status: 200 }));
+
+    const result = await pollForToken(AUTH_CONFIG, 'dev-code-123', 1, 300);
+
+    expect(result).toEqual({ status: 'success', tokens: tokenResponse });
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('gives up after deadline even with network errors', async () => {
+    // Every fetch call throws a network error
+    vi.mocked(fetch).mockRejectedValue(new TypeError('Failed to fetch'));
+
+    const result = await pollForToken(AUTH_CONFIG, 'dev-code-123', 1, 2);
+
+    expect(result.status).toBe('expired');
+  }, 15_000);
 });
 
 describe('fetchUserInfo', () => {

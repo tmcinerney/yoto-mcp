@@ -123,6 +123,72 @@ describe('refreshAccount', () => {
   });
 });
 
+describe('refreshAccount — refresh_token preservation', () => {
+  let configDir: string;
+  let store: TokenStore;
+
+  beforeEach(async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    configDir = join(tmpdir(), `yoto-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    store = new TokenStore(configDir);
+    await store.load();
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await rm(configDir, { recursive: true, force: true });
+  });
+
+  it('preserves existing refresh_token when Auth0 response omits it', async () => {
+    await store.setAccount({
+      userId: 'user-1',
+      email: 'trav@example.com',
+      displayName: 'Trav',
+      accessToken: 'old-access',
+      refreshToken: 'existing-refresh-token',
+      expiresAt: new Date(Date.now() - 1000).toISOString(),
+      lastUsed: new Date().toISOString(),
+    });
+
+    // Auth0 response WITHOUT refresh_token (rotation disabled or not returned)
+    const responseWithoutRefresh = {
+      access_token: 'new-access-token',
+      token_type: 'Bearer',
+      expires_in: 86400,
+      // refresh_token intentionally omitted
+    };
+
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(responseWithoutRefresh), { status: 200 }),
+    );
+
+    await refreshAccount(AUTH_CONFIG, store, 'user-1');
+
+    // The existing refresh token should be preserved, not overwritten with undefined
+    expect(store.getAccount('user-1')?.refreshToken).toBe('existing-refresh-token');
+  });
+
+  it('uses new refresh_token when Auth0 response includes it', async () => {
+    await store.setAccount({
+      userId: 'user-1',
+      email: 'trav@example.com',
+      displayName: 'Trav',
+      accessToken: 'old-access',
+      refreshToken: 'old-refresh-token',
+      expiresAt: new Date(Date.now() - 1000).toISOString(),
+      lastUsed: new Date().toISOString(),
+    });
+
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(FRESH_TOKEN_RESPONSE), { status: 200 }),
+    );
+
+    await refreshAccount(AUTH_CONFIG, store, 'user-1');
+
+    expect(store.getAccount('user-1')?.refreshToken).toBe('new-refresh-token');
+  });
+});
+
 describe('refreshExpiringAccounts', () => {
   let configDir: string;
   let store: TokenStore;
