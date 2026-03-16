@@ -10,36 +10,42 @@ interface UploadAudioArgs {
   filename?: string;
 }
 
+// Actual API response shapes — the SDK types don't match the real API
+interface UploadUrlApiResponse {
+  uploadUrl: string | null;
+  uploadId: string;
+}
+
+interface TranscodeApiResponse {
+  progress?: { phase: string; percent: number };
+  transcodedSha256?: string;
+  transcodedInfo?: { duration: number; fileSize: number };
+}
+
 const TRANSCODE_POLL_INTERVAL_MS = 10_000;
 const TRANSCODE_MAX_WAIT_MS = 15 * 60_000;
 
-interface TranscodeResult {
-  mediaUrl: string;
-  status: string;
-  duration?: number;
-  fileSize?: number;
+function isTranscodeComplete(response: TranscodeApiResponse): boolean {
+  return response.progress?.phase === 'complete';
 }
 
-async function pollTranscode(sdk: YotoSdk, uploadId: string): Promise<TranscodeResult> {
+function buildMediaUrl(response: TranscodeApiResponse): string {
+  if (!response.transcodedSha256) {
+    throw new Error('Transcode completed but transcodedSha256 is missing from response');
+  }
+  return `yoto:#${response.transcodedSha256}`;
+}
+
+async function pollTranscode(sdk: YotoSdk, uploadId: string): Promise<TranscodeApiResponse> {
   const deadline = Date.now() + TRANSCODE_MAX_WAIT_MS;
 
   while (Date.now() < deadline) {
-    const transcode = await sdk.media.getTranscodedUpload(uploadId);
-    const raw = transcode as Record<string, unknown>;
-    const progress = raw.progress as Record<string, unknown> | undefined;
+    const response = (await sdk.media.getTranscodedUpload(
+      uploadId,
+    )) as unknown as TranscodeApiResponse;
 
-    // Check if transcode is complete — the API uses progress.phase, not a url field
-    if (progress?.phase === 'complete' || transcode.url) {
-      const transcodedSha256 = raw.transcodedSha256 as string | undefined;
-      const mediaUrl = transcode.url ?? (transcodedSha256 ? `yoto:#${transcodedSha256}` : '');
-      const info = raw.transcodedInfo as Record<string, unknown> | undefined;
-
-      return {
-        mediaUrl,
-        status: 'completed',
-        duration: info?.duration as number | undefined,
-        fileSize: info?.fileSize as number | undefined,
-      };
+    if (isTranscodeComplete(response)) {
+      return response;
     }
 
     await new Promise((resolve) => setTimeout(resolve, TRANSCODE_POLL_INTERVAL_MS));
@@ -53,41 +59,39 @@ export async function handleUploadAudio(
   args: UploadAudioArgs,
 ): Promise<CallToolResult> {
   try {
-    // Read file and compute SHA-256 hash
     const fileBuffer = await readFile(args.filePath);
     const hash = createHash('sha256').update(fileBuffer).digest('hex');
     const filename = args.filename ?? basename(args.filePath);
 
-    // Get presigned upload URL
-    // SDK types say `url` but the API returns `uploadUrl` and `uploadId`
-    const upload = await sdk.media.getUploadUrlForTranscode(hash, filename);
-    const uploadUrl = (upload as Record<string, unknown>).uploadUrl as string | undefined;
-    const uploadId = ((upload as Record<string, unknown>).uploadId as string | undefined) ?? hash;
+    // SDK types don't match the real API — cast to actual response shape
+    const upload = (await sdk.media.getUploadUrlForTranscode(
+      hash,
+      filename,
+    )) as unknown as UploadUrlApiResponse;
 
     // uploadUrl is null when Yoto already has this file (same SHA-256)
-    if (uploadUrl) {
-      // Upload file directly — the SDK's uploadFile sends the Authorization header
-      // along with the presigned URL, which S3 rejects
-      const uploadResponse = await fetch(uploadUrl, {
+    if (upload.uploadUrl) {
+      // Upload directly with fetch — the SDK's uploadFile leaks the
+      // Authorization header to the presigned S3 URL, causing a 400
+      const response = await fetch(upload.uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'audio/mpeg' },
         body: fileBuffer,
       });
 
-      if (!uploadResponse.ok) {
-        const body = await uploadResponse.text();
-        return toolError(`S3 upload failed (${uploadResponse.status}): ${body}`);
+      if (!response.ok) {
+        const body = await response.text();
+        return toolError(`S3 upload failed (${response.status}): ${body}`);
       }
     }
 
-    // Poll for transcode completion — may take minutes for large files
-    const transcode = await pollTranscode(sdk, uploadId);
+    const transcode = await pollTranscode(sdk, upload.uploadId ?? hash);
+    const mediaUrl = buildMediaUrl(transcode);
 
     return toolResult({
-      mediaUrl: transcode.mediaUrl,
-      status: transcode.status,
-      duration: transcode.duration,
-      fileSize: transcode.fileSize,
+      mediaUrl,
+      duration: transcode.transcodedInfo?.duration,
+      fileSize: transcode.transcodedInfo?.fileSize,
       filename,
     });
   } catch (err) {

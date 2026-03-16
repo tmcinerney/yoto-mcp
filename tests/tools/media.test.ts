@@ -15,6 +15,23 @@ vi.mock('node:crypto', () => ({
 
 import { readFile } from 'node:fs/promises';
 
+// Helpers matching actual Yoto API response shapes
+function mockUploadUrl(uploadUrl: string | null, uploadId = 'test-upload-id') {
+  return { uploadUrl, uploadId } as never;
+}
+
+function mockTranscodeComplete(sha256: string, duration = 120, fileSize = 5000) {
+  return {
+    progress: { phase: 'complete', percent: 100 },
+    transcodedSha256: sha256,
+    transcodedInfo: { duration, fileSize },
+  } as never;
+}
+
+function mockTranscodeProcessing(percent = 50) {
+  return { progress: { phase: 'processing', percent } } as never;
+}
+
 function mockFetchOk() {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 200 })));
 }
@@ -29,36 +46,28 @@ describe('handleUploadAudio', () => {
     vi.restoreAllMocks();
   });
 
-  it('uploads file through full pipeline: hash → presign → upload → transcode', async () => {
+  it('uploads and returns yoto:# media URL from transcode', async () => {
     const sdk = createMockSdk();
     const fileBuffer = Buffer.from('fake-audio-data');
 
     vi.mocked(readFile).mockResolvedValue(fileBuffer);
-    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
-      uploadUrl: 'https://s3.example.com/presigned',
-      uploadId: 'upload-id-1',
-    } as never);
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned'),
+    );
     mockFetchOk();
-    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
-      progress: { phase: 'complete', percent: 100 },
-      transcodedSha256: 'abc123transcoded',
-      transcodedInfo: { duration: 120, fileSize: 5000 },
-    } as never);
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(
+      mockTranscodeComplete('abc123transcoded', 120, 5000),
+    );
 
-    const result = await handleUploadAudio(sdk, {
-      filePath: '/tmp/audio.mp3',
-    });
+    const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
 
     expect(result.isError).toBeUndefined();
     const data = JSON.parse(result.content[0].text);
     expect(data.mediaUrl).toBe('yoto:#abc123transcoded');
-    expect(data.status).toBe('completed');
     expect(data.duration).toBe(120);
+    expect(data.fileSize).toBe(5000);
+    expect(data.filename).toBe('audio.mp3');
 
-    expect(readFile).toHaveBeenCalledWith('/tmp/audio.mp3');
-    expect(sdk.media.getUploadUrlForTranscode).toHaveBeenCalledWith('abc123hash', 'audio.mp3');
-
-    // Verify direct fetch to S3 — not sdk.media.uploadFile
     expect(fetch).toHaveBeenCalledWith('https://s3.example.com/presigned', {
       method: 'PUT',
       headers: { 'Content-Type': 'audio/mpeg' },
@@ -71,52 +80,45 @@ describe('handleUploadAudio', () => {
     const sdk = createMockSdk();
     const mockFetch = vi.fn();
     vi.stubGlobal('fetch', mockFetch);
+
     vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
-    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
-      uploadUrl: null,
-      uploadId: 'existing-id',
-    } as never);
-    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
-      progress: { phase: 'complete', percent: 100 },
-      transcodedSha256: 'existing-hash',
-    } as never);
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl(null, 'existing-id'),
+    );
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(
+      mockTranscodeComplete('existing-hash'),
+    );
 
     const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
 
     expect(result.isError).toBeUndefined();
     const data = JSON.parse(result.content[0].text);
     expect(data.mediaUrl).toBe('yoto:#existing-hash');
-    // Should NOT have called fetch — file was already uploaded
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('polls transcode until url is available', async () => {
+  it('polls until transcode completes', async () => {
     const sdk = createMockSdk();
     vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
-    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
-      uploadUrl: 'https://s3.example.com/presigned',
-      uploadId: 'poll-id',
-    } as never);
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned'),
+    );
     mockFetchOk();
 
     let callCount = 0;
     vi.mocked(sdk.media.getTranscodedUpload).mockImplementation(async () => {
       callCount++;
-      if (callCount < 3) return { progress: { phase: 'processing', percent: 50 } } as never;
-      return {
-        progress: { phase: 'complete', percent: 100 },
-        transcodedSha256: 'done-hash',
-      } as never;
+      if (callCount < 3) return mockTranscodeProcessing(callCount * 33);
+      return mockTranscodeComplete('done-hash');
     });
 
-    // Override setTimeout to resolve immediately so polling doesn't wait
+    // Skip poll delays
     vi.stubGlobal('setTimeout', (fn: () => void) => {
       fn();
       return 0;
     });
 
     const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
-
     vi.unstubAllGlobals();
 
     expect(result.isError).toBeUndefined();
@@ -125,35 +127,28 @@ describe('handleUploadAudio', () => {
     expect(sdk.media.getTranscodedUpload).toHaveBeenCalledTimes(3);
   });
 
-  it('uses uploadId from response for transcode polling', async () => {
+  it('uses uploadId from response for polling', async () => {
     const sdk = createMockSdk();
     vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
-    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
-      uploadUrl: 'https://s3.example.com/presigned',
-      uploadId: 'custom-upload-id',
-    } as never);
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned', 'custom-upload-id'),
+    );
     mockFetchOk();
-    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
-      progress: { phase: 'complete', percent: 100 },
-      transcodedSha256: 'media-hash',
-    } as never);
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(mockTranscodeComplete('hash'));
 
     await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
 
     expect(sdk.media.getTranscodedUpload).toHaveBeenCalledWith('custom-upload-id');
   });
 
-  it('falls back to hash when uploadId is missing', async () => {
+  it('falls back to file hash when uploadId is missing', async () => {
     const sdk = createMockSdk();
     vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
     vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
       uploadUrl: 'https://s3.example.com/presigned',
     } as never);
     mockFetchOk();
-    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
-      progress: { phase: 'complete', percent: 100 },
-      transcodedSha256: 'media-hash',
-    } as never);
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(mockTranscodeComplete('hash'));
 
     await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
 
@@ -163,31 +158,45 @@ describe('handleUploadAudio', () => {
   it('uses custom filename when provided', async () => {
     const sdk = createMockSdk();
     vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
-    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
-      uploadUrl: 'https://s3.example.com/presigned',
-      uploadId: 'upload-id-2',
-    } as never);
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned'),
+    );
     mockFetchOk();
-    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
-      progress: { phase: 'complete', percent: 100 },
-      transcodedSha256: 'media-2-hash',
-    } as never);
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(mockTranscodeComplete('hash'));
 
-    await handleUploadAudio(sdk, {
+    const result = await handleUploadAudio(sdk, {
       filePath: '/tmp/audio.mp3',
       filename: 'my-song.mp3',
     });
 
     expect(sdk.media.getUploadUrlForTranscode).toHaveBeenCalledWith('abc123hash', 'my-song.mp3');
+    const data = JSON.parse(result.content[0].text);
+    expect(data.filename).toBe('my-song.mp3');
   });
 
-  it('returns error when S3 upload fails', async () => {
+  it('errors when transcodedSha256 is missing from complete response', async () => {
     const sdk = createMockSdk();
     vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
-    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
-      uploadUrl: 'https://s3.example.com/presigned',
-      uploadId: 'id',
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned'),
+    );
+    mockFetchOk();
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
+      progress: { phase: 'complete', percent: 100 },
     } as never);
+
+    const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('transcodedSha256 is missing');
+  });
+
+  it('errors when S3 upload fails', async () => {
+    const sdk = createMockSdk();
+    vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned'),
+    );
     mockFetchError(403, 'Access Denied');
 
     const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
@@ -196,33 +205,28 @@ describe('handleUploadAudio', () => {
     expect(result.content[0].text).toContain('S3 upload failed (403)');
   });
 
-  it('returns error when file read fails', async () => {
+  it('errors when file read fails', async () => {
     const sdk = createMockSdk();
     vi.mocked(readFile).mockRejectedValue(new Error('ENOENT: no such file'));
 
-    const result = await handleUploadAudio(sdk, {
-      filePath: '/tmp/nonexistent.mp3',
-    });
+    const result = await handleUploadAudio(sdk, { filePath: '/tmp/nonexistent.mp3' });
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('ENOENT');
   });
 
-  it('returns error when transcode fails', async () => {
+  it('errors when transcode request fails', async () => {
     const sdk = createMockSdk();
     vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
-    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
-      uploadUrl: 'https://s3.example.com/presigned',
-      uploadId: 'upload-id-3',
-    } as never);
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned'),
+    );
     mockFetchOk();
-    vi.mocked(sdk.media.getTranscodedUpload).mockRejectedValue(new Error('Transcode failed'));
+    vi.mocked(sdk.media.getTranscodedUpload).mockRejectedValue(new Error('Transcode API error'));
 
-    const result = await handleUploadAudio(sdk, {
-      filePath: '/tmp/audio.mp3',
-    });
+    const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('Transcode failed');
+    expect(result.content[0].text).toContain('Transcode API error');
   });
 });
