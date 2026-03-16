@@ -80,7 +80,9 @@ export async function handleUploadAudio(
 ): Promise<CallToolResult> {
   try {
     // Reject relative/traversal paths — only accept absolute paths
-    const normalizedPath = normalize(args.filePath);
+    // NFD normalize for macOS filesystem compatibility (HFS+/APFS stores NFD,
+    // but JSON transport may deliver NFC — causing ENOENT on emoji/accent paths)
+    const normalizedPath = normalize(args.filePath).normalize('NFD');
     if (!isAbsolute(normalizedPath)) {
       return toolError('filePath must be an absolute path');
     }
