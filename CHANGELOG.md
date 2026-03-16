@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-03-16
+
+### Fixed
+- NFD normalize file paths before filesystem operations — fixes ENOENT on macOS for filenames with emoji, accented characters, or special dashes (HFS+/APFS stores NFD, JSON/MCP transport delivers NFC)
+
 ## [0.5.1] - 2026-03-16
 
 ### Changed
