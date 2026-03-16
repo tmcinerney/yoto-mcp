@@ -29,54 +29,18 @@ docker run -d \
 docker compose up -d
 ```
 
-## NixOS deployment (apollo)
-
-The container is defined in `homelab-nixos/containers/yoto-mcp.nix` and imported by `hosts/apollo/configuration.nix`.
-
-### Container config
-
-- Image: `ghcr.io/tmcinerney/yoto-mcp:latest` with `--pull=always`
-- Port: `3100` (opened in firewall)
-- Volume: `yoto-mcp-config:/config`
-- Client ID is set directly in the nix config (public client, not a secret)
-
-### Deploy to apollo
-
-```bash
-cd ~/Code/Private/homelab-nixos
-
-# Check the config builds
-nfc   # nix flake check
-
-# Build without switching (verify)
-nrb   # sudo nixos-rebuild build --no-link --flake .
-
-# Apply
-nrs   # sudo nixos-rebuild switch --flake .
-```
-
-### Verify
+## Verify
 
 ```bash
 # Check container is running
 docker ps | grep yoto-mcp
 
 # Check health
-curl http://apollo:3100/health
+curl http://localhost:3100/health
 
 # Check logs
-docker logs homelab-yoto-mcp
+docker logs <container-name>
 ```
-
-### Update the image
-
-The container uses `--pull=always`, so restarting pulls the latest tag:
-
-```bash
-systemctl restart docker-homelab-yoto-mcp.service
-```
-
-To deploy a specific version, update the image tag in `containers/yoto-mcp.nix` and `nrs`.
 
 ## MCP client configuration
 
@@ -87,26 +51,13 @@ To deploy a specific version, update the image tag in `containers/yoto-mcp.nix` 
   "mcpServers": {
     "yoto-mcp": {
       "type": "streamable-http",
-      "url": "http://apollo:3100/mcp"
+      "url": "http://localhost:3100/mcp"
     }
   }
 }
 ```
 
-For local development, use `http://localhost:3100/mcp` instead.
-
-### OpenClaw (`openclaw.json`)
-
-```json
-{
-  "mcpServers": {
-    "yoto-mcp": {
-      "type": "streamable-http",
-      "url": "http://apollo:3100/mcp"
-    }
-  }
-}
-```
+Replace `localhost` with the hostname or IP where the server is running.
 
 ## Authentication
 

@@ -7,7 +7,7 @@ MCP server exposing Yoto API operations as tools. TypeScript, Node 22, ESM.
 - **Dev**: `npm run dev` (tsx watch on :3100)
 - **Check**: `npm run check` (lint + typecheck + test — run before committing)
 - **Architecture, testing, versioning**: See [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Docker, NixOS deploy, MCP client config**: See [DEPLOY.md](DEPLOY.md)
+- **Docker, deploy, MCP client config**: See [DEPLOY.md](DEPLOY.md)
 
 ## Code conventions
 
@@ -38,4 +38,4 @@ Tag `vX.Y.Z` triggers multi-arch Docker build + push to GHCR.
 
 ## Deployment
 
-Server runs on **apollo** (NixOS homelab host) as a Docker container. Config in `homelab-nixos/containers/yoto-mcp.nix`. See [DEPLOY.md](DEPLOY.md) for full procedures.
+Docker container on GHCR. See [DEPLOY.md](DEPLOY.md) for Docker run/compose commands and MCP client configuration.
