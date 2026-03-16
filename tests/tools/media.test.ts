@@ -89,7 +89,6 @@ describe('handleUploadAudio', () => {
   });
 
   it('polls transcode until url is available', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
     const sdk = createMockSdk();
     vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
     vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
@@ -97,19 +96,29 @@ describe('handleUploadAudio', () => {
       uploadId: 'poll-id',
     } as never);
     mockFetchOk();
-    vi.mocked(sdk.media.getTranscodedUpload)
-      .mockResolvedValueOnce({ url: '', status: 'processing' })
-      .mockResolvedValueOnce({ url: '', status: 'processing' })
-      .mockResolvedValueOnce({ url: 'yoto:#done', status: 'completed' });
+
+    let callCount = 0;
+    vi.mocked(sdk.media.getTranscodedUpload).mockImplementation(async () => {
+      callCount++;
+      if (callCount < 3) return { url: '', status: 'processing' };
+      return { url: 'yoto:#done', status: 'completed' };
+    });
+
+    // Override setTimeout to resolve immediately so polling doesn't wait
+    vi.stubGlobal('setTimeout', (fn: () => void) => {
+      fn();
+      return 0;
+    });
 
     const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
+
+    vi.unstubAllGlobals();
 
     expect(result.isError).toBeUndefined();
     const data = JSON.parse(result.content[0].text);
     expect(data.mediaUrl).toBe('yoto:#done');
     expect(sdk.media.getTranscodedUpload).toHaveBeenCalledTimes(3);
-    vi.useRealTimers();
-  }, 15_000);
+  });
 
   it('uses uploadId from response for transcode polling', async () => {
     const sdk = createMockSdk();

@@ -10,8 +10,8 @@ interface UploadAudioArgs {
   filename?: string;
 }
 
-const TRANSCODE_POLL_INTERVAL_MS = 5_000;
-const TRANSCODE_MAX_WAIT_MS = 5 * 60_000;
+const TRANSCODE_POLL_INTERVAL_MS = 10_000;
+const TRANSCODE_MAX_WAIT_MS = 15 * 60_000;
 
 async function pollTranscode(
   sdk: YotoSdk,

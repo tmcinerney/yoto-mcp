@@ -54,7 +54,7 @@ describe('stdio transport', () => {
     expect(parsed.jsonrpc).toBe('2.0');
     expect(parsed.id).toBe(1);
     expect(parsed.result.serverInfo.name).toBe('yoto-mcp');
-    expect(parsed.result.serverInfo.version).toBe('0.3.2');
+    expect(parsed.result.serverInfo.version).toBe('0.3.3');
     expect(parsed.result.capabilities).toBeDefined();
   }, 15_000);
 
