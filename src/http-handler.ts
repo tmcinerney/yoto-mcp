@@ -1,6 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-// AIDEV-NOTE: Transport interface matches StreamableHTTPServerTransport.handleRequest
 export interface McpTransport {
   handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void>;
 }

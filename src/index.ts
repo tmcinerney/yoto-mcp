@@ -15,15 +15,14 @@ await store.load();
 const ctx = new ToolContext(store, config.auth);
 const mcpServer = createServer(ctx);
 
-// AIDEV-NOTE: Periodic refresh invalidates cached SDKs so they get fresh tokens
-// AIDEV-NOTE: Cleanup function retained for graceful shutdown
+// Periodic refresh invalidates cached SDKs so they get fresh tokens
 void startPeriodicRefresh(config.auth, store, (refreshedIds) => {
   for (const id of refreshedIds) {
     ctx.invalidateSdk(id);
   }
 });
 
-// AIDEV-NOTE: Stateful transport — session tracking required for multi-request flows
+// Stateful transport — session tracking required for multi-request flows
 // (e.g. yoto_auth returns URL, then yoto_auth_complete polls with the same device code)
 const transport = new StreamableHTTPServerTransport({
   sessionIdGenerator: () => randomUUID(),

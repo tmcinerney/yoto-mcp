@@ -27,7 +27,7 @@ export async function handleUploadAudio(
     await sdk.media.uploadFile(upload.url, fileBuffer as Buffer);
 
     // Poll for transcode completion
-    // AIDEV-NOTE: uploadId derived from presigned URL fields — the SDK uses the key field
+    // uploadId derived from presigned URL fields — the SDK uses the key field
     const uploadId = upload.fields?.key ?? hash;
     const transcode = await sdk.media.getTranscodedUpload(uploadId);
 

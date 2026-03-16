@@ -9,7 +9,6 @@ import { handleUploadAudio } from './tools/media.js';
 import type { ToolContext } from './tools/shared.js';
 import { toolError } from './tools/shared.js';
 
-// AIDEV-NOTE: Zod shapes used as MCP inputSchema — each key becomes a tool parameter
 const AccountParam = {
   account: z.string().optional().describe('Account ID (uses default if omitted)'),
 };

@@ -6,7 +6,7 @@ import type { AuthConfig } from '../auth/types.js';
 
 type SdkResult = { sdk: YotoSdk; account: { userId: string; email: string } } | { error: string };
 
-// AIDEV-NOTE: SDK instances cached per account, invalidated on token refresh
+// SDK instances cached per account, invalidated on token refresh
 export class ToolContext {
   private sdkCache = new Map<string, YotoSdk>();
 

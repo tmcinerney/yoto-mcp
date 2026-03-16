@@ -4,7 +4,7 @@ import type { TokenStore } from '../auth/token-store.js';
 import type { AuthConfig } from '../auth/types.js';
 import { toolError, toolResult } from './shared.js';
 
-// AIDEV-NOTE: Pending device codes stored in memory — lost on server restart
+// Pending device codes stored in memory — lost on server restart
 const pendingDeviceCodes = new Map<
   string,
   { deviceCode: string; interval: number; expiresIn: number; createdAt: number }

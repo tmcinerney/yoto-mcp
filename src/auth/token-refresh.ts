@@ -26,10 +26,10 @@ export async function refreshAccessToken(
   return (await response.json()) as TokenResponse;
 }
 
-// AIDEV-NOTE: Proactive refresh window — 1 hour before expiry
+// Proactive refresh — 1 hour before expiry
 const REFRESH_WINDOW_MS = 60 * 60 * 1000;
 
-// AIDEV-NOTE: Periodic refresh interval — scans every 15 minutes
+// Scan interval — every 15 minutes
 const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 
 /**

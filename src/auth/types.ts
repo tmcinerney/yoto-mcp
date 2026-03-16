@@ -55,7 +55,6 @@ export interface AuthConfig {
   audience: string;
 }
 
-// AIDEV-NOTE: Auth0 defaults for Yoto — configurable via env vars
 export const AUTH_DEFAULTS = {
   authDomain: 'login.yotoplay.com',
   audience: 'https://api.yotoplay.com',
