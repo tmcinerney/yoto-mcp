@@ -17,7 +17,7 @@ const AccountParam = {
 export function createServer(ctx?: ToolContext): McpServer {
   const server = new McpServer({
     name: 'yoto-mcp',
-    version: '0.1.0',
+    version: '0.2.0',
   });
 
   if (!ctx) return server;

@@ -13,76 +13,22 @@ Uses the official [@yotoplay/yoto-sdk](https://github.com/yotoplay/yoto-sdk) and
 - Device listing — see your Yoto players and their status
 - Streamable HTTP transport — connect from any MCP-compatible client over HTTP
 
-## Prerequisites
-
-- Node.js >= 22
-- A Yoto developer app client ID from [dashboard.yoto.dev](https://dashboard.yoto.dev) (register as a **Public Client** — confidential clients don't support device code grant)
-
 ## Quick start
 
 ```bash
-# Clone and install
 git clone https://github.com/tmcinerney/yoto-mcp.git
 cd yoto-mcp
 npm install
-
-# Set environment variables
-export YOTO_CLIENT_ID="your-client-id"
-
-# Run in development
+cp .env.example .env
+# Edit .env with your YOTO_CLIENT_ID (Public Client from dashboard.yoto.dev)
 npm run dev
 ```
 
-## Docker
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full development setup, tooling, and release process.
 
-```bash
-# Build and run
-docker compose up -d
+## Deployment
 
-# Or pull from GHCR
-docker pull ghcr.io/tmcinerney/yoto-mcp:latest
-docker run -d \
-  -e YOTO_CLIENT_ID="your-client-id" \
-  -v yoto-config:/config \
-  -p 3100:3100 \
-  ghcr.io/tmcinerney/yoto-mcp:latest
-```
-
-## MCP client configuration
-
-### Claude Code (`~/.claude/mcp.json`)
-
-```json
-{
-  "mcpServers": {
-    "yoto-mcp": {
-      "type": "streamable-http",
-      "url": "http://localhost:3100/mcp"
-    }
-  }
-}
-```
-
-### OpenClaw (`openclaw.json`)
-
-```json
-{
-  "mcpServers": {
-    "yoto-mcp": {
-      "type": "streamable-http",
-      "url": "http://<your-host>:3100/mcp"
-    }
-  }
-}
-```
-
-## Environment variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `YOTO_CLIENT_ID` | Yes | — | Public Client ID from dashboard.yoto.dev |
-| `YOTO_MCP_PORT` | No | `3100` | Port for the HTTP server |
-| `YOTO_CONFIG_DIR` | No | `~/.config/yoto-mcp` | Directory for account credentials |
+Docker image on GHCR, runs on NixOS homelab. See [DEPLOY.md](DEPLOY.md) for Docker, NixOS, and MCP client configuration.
 
 ## Available tools
 
@@ -99,17 +45,6 @@ docker run -d \
 | `yoto_upload_audio` | Upload audio file and wait for transcoding |
 | `yoto_list_devices` | List Yoto player devices |
 | `yoto_list_icons` | List available display icons |
-
-## Development
-
-```bash
-npm run dev          # Start with hot reload
-npm run test         # Run tests
-npm run test:watch   # Run tests in watch mode
-npm run lint         # Lint with Biome
-npm run typecheck    # Type check
-npm run check        # All checks (lint + typecheck + test)
-```
 
 ## License
 
