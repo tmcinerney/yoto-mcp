@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-03-16
+
+### Changed
+- CLAUDE.md: added references table, removed stale version locations (server.ts now reads from package.json)
+- CONTRIBUTING.md: updated version locations to reflect single source of truth in package.json
+
 ## [0.5.2] - 2026-03-16
 
 ### Fixed

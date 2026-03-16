@@ -87,17 +87,11 @@ src/
 
 ### Version locations
 
-Version must be consistent across all three:
-
-| Location | File |
-|----------|------|
-| npm | `package.json` → `version` |
-| MCP server | `src/server.ts` → `McpServer({ version })` |
-| lockfile | `package-lock.json` (updated by `npm version`) |
+`package.json` is the single source of truth — `server.ts` reads version dynamically via `createRequire`. `package-lock.json` is updated automatically by npm.
 
 ### Release process
 
-1. Bump version in `package.json` and `src/server.ts`
+1. Bump version in `package.json`
 2. Update `CHANGELOG.md` — move `[Unreleased]` entries to a versioned section
 3. Commit: `chore: bump version to X.Y.Z`
 4. Tag: `git tag vX.Y.Z`

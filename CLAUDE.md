@@ -2,12 +2,19 @@
 
 MCP server exposing Yoto API operations as tools. TypeScript, Node 22, ESM.
 
+## References
+
+| Doc | Contents |
+|-----|----------|
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Architecture, testing, tooling, versioning, release process, commit conventions |
+| [DEPLOY.md](DEPLOY.md) | Docker, npm, MCP client configs (Claude Code, OpenClaw), auth flow |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| `.claude/rules/` | Local-only rules for Claude Code (not committed) |
+
 ## Quick reference
 
 - **Dev**: `npm run dev` (tsx watch on :3100)
-- **Check**: `npm run check` (lint + typecheck + test — run before committing)
-- **Architecture, testing, versioning**: See [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Docker, deploy, MCP client config**: See [DEPLOY.md](DEPLOY.md)
+- **Check**: `npm run check` (lint + typecheck + test — run before pushing)
 
 ## Code conventions
 
@@ -24,17 +31,9 @@ MCP server exposing Yoto API operations as tools. TypeScript, Node 22, ESM.
 - Token store: atomic JSON file writes (write-temp + rename)
 - Auto-refresh: 15min periodic scan + on-demand before API calls
 
-## Version locations
+## Versioning
 
-Keep these in sync (see [CONTRIBUTING.md § Versioning](CONTRIBUTING.md#versioning-and-releases)):
-
-| Location | File |
-|----------|------|
-| npm | `package.json` → `version` |
-| MCP server | `src/server.ts` → `McpServer({ version })` |
-| lockfile | `package-lock.json` |
-
-Tag `vX.Y.Z` triggers multi-arch Docker build + push to GHCR, and `npm publish`.
+`package.json` is the single source of truth for version (`server.ts` reads it dynamically). Tag `vX.Y.Z` triggers multi-arch Docker build + push to GHCR, and `npm publish`. See [CONTRIBUTING.md § Versioning](CONTRIBUTING.md#versioning-and-releases) for full process.
 
 ## Transport modes
 
