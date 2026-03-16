@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - CLAUDE.md, CONTRIBUTING.md, DEPLOY.md — project documentation
 - `yoto_auth_complete` tool — two-phase auth (initiate + complete) replaces blocking single-tool flow
-- NixOS container config for apollo deployment
 
 ### Changed
 - Switched to Public Client auth (no `client_secret` needed)

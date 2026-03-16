@@ -28,7 +28,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full development setup, tooling, and 
 
 ## Deployment
 
-Docker image on GHCR, runs on NixOS homelab. See [DEPLOY.md](DEPLOY.md) for Docker, NixOS, and MCP client configuration.
+Docker image on GHCR. See [DEPLOY.md](DEPLOY.md) for Docker and MCP client configuration.
 
 ## Available tools
 
