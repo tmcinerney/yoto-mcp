@@ -52,33 +52,20 @@ docker logs <container-name>
 
 ## MCP client configuration
 
-### Claude Code — stdio (`~/.claude/mcp.json`)
+### Claude Code — stdio (recommended)
 
-```json
-{
-  "mcpServers": {
-    "yoto-mcp": {
-      "command": "npx",
-      "args": ["-y", "yoto-mcp", "--stdio"],
-      "env": {
-        "YOTO_CLIENT_ID": "your-client-id"
-      }
-    }
-  }
-}
+```bash
+claude mcp add yoto-mcp --scope user \
+  -e YOTO_CLIENT_ID=your-client-id \
+  -- npx -y yoto-mcp --stdio
 ```
 
-### Claude Code — HTTP (`~/.claude/mcp.json`)
+### Claude Code — HTTP
 
-```json
-{
-  "mcpServers": {
-    "yoto-mcp": {
-      "type": "streamable-http",
-      "url": "http://localhost:3100/mcp"
-    }
-  }
-}
+```bash
+claude mcp add yoto-mcp --scope user \
+  --transport http \
+  http://localhost:3100/mcp
 ```
 
 Replace `localhost` with the hostname or IP where the server is running.
