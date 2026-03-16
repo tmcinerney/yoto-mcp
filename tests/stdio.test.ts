@@ -1,5 +1,8 @@
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8'));
 
 describe('stdio transport', () => {
   it('starts in stdio mode with --stdio flag', async () => {
@@ -54,7 +57,7 @@ describe('stdio transport', () => {
     expect(parsed.jsonrpc).toBe('2.0');
     expect(parsed.id).toBe(1);
     expect(parsed.result.serverInfo.name).toBe('yoto-mcp');
-    expect(parsed.result.serverInfo.version).toBe('0.3.3');
+    expect(parsed.result.serverInfo.version).toBe(pkg.version);
     expect(parsed.result.capabilities).toBeDefined();
   }, 15_000);
 

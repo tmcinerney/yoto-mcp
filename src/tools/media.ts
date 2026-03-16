@@ -13,17 +13,35 @@ interface UploadAudioArgs {
 const TRANSCODE_POLL_INTERVAL_MS = 10_000;
 const TRANSCODE_MAX_WAIT_MS = 15 * 60_000;
 
-async function pollTranscode(
-  sdk: YotoSdk,
-  uploadId: string,
-): Promise<{ url: string; status: string }> {
+interface TranscodeResult {
+  mediaUrl: string;
+  status: string;
+  duration?: number;
+  fileSize?: number;
+}
+
+async function pollTranscode(sdk: YotoSdk, uploadId: string): Promise<TranscodeResult> {
   const deadline = Date.now() + TRANSCODE_MAX_WAIT_MS;
 
   while (Date.now() < deadline) {
     const transcode = await sdk.media.getTranscodedUpload(uploadId);
-    if (transcode.url) {
-      return transcode;
+    const raw = transcode as Record<string, unknown>;
+    const progress = raw.progress as Record<string, unknown> | undefined;
+
+    // Check if transcode is complete — the API uses progress.phase, not a url field
+    if (progress?.phase === 'complete' || transcode.url) {
+      const transcodedSha256 = raw.transcodedSha256 as string | undefined;
+      const mediaUrl = transcode.url ?? (transcodedSha256 ? `yoto:#${transcodedSha256}` : '');
+      const info = raw.transcodedInfo as Record<string, unknown> | undefined;
+
+      return {
+        mediaUrl,
+        status: 'completed',
+        duration: info?.duration as number | undefined,
+        fileSize: info?.fileSize as number | undefined,
+      };
     }
+
     await new Promise((resolve) => setTimeout(resolve, TRANSCODE_POLL_INTERVAL_MS));
   }
 
@@ -66,8 +84,10 @@ export async function handleUploadAudio(
     const transcode = await pollTranscode(sdk, uploadId);
 
     return toolResult({
-      mediaUrl: transcode.url,
+      mediaUrl: transcode.mediaUrl,
       status: transcode.status,
+      duration: transcode.duration,
+      fileSize: transcode.fileSize,
       filename,
     });
   } catch (err) {

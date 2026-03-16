@@ -40,9 +40,10 @@ describe('handleUploadAudio', () => {
     } as never);
     mockFetchOk();
     vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
-      url: 'yoto:#transcoded-media-id',
-      status: 'completed',
-    });
+      progress: { phase: 'complete', percent: 100 },
+      transcodedSha256: 'abc123transcoded',
+      transcodedInfo: { duration: 120, fileSize: 5000 },
+    } as never);
 
     const result = await handleUploadAudio(sdk, {
       filePath: '/tmp/audio.mp3',
@@ -50,8 +51,9 @@ describe('handleUploadAudio', () => {
 
     expect(result.isError).toBeUndefined();
     const data = JSON.parse(result.content[0].text);
-    expect(data.mediaUrl).toBe('yoto:#transcoded-media-id');
+    expect(data.mediaUrl).toBe('yoto:#abc123transcoded');
     expect(data.status).toBe('completed');
+    expect(data.duration).toBe(120);
 
     expect(readFile).toHaveBeenCalledWith('/tmp/audio.mp3');
     expect(sdk.media.getUploadUrlForTranscode).toHaveBeenCalledWith('abc123hash', 'audio.mp3');
@@ -75,15 +77,15 @@ describe('handleUploadAudio', () => {
       uploadId: 'existing-id',
     } as never);
     vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
-      url: 'yoto:#already-transcoded',
-      status: 'completed',
-    });
+      progress: { phase: 'complete', percent: 100 },
+      transcodedSha256: 'existing-hash',
+    } as never);
 
     const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
 
     expect(result.isError).toBeUndefined();
     const data = JSON.parse(result.content[0].text);
-    expect(data.mediaUrl).toBe('yoto:#already-transcoded');
+    expect(data.mediaUrl).toBe('yoto:#existing-hash');
     // Should NOT have called fetch — file was already uploaded
     expect(mockFetch).not.toHaveBeenCalled();
   });
@@ -100,8 +102,11 @@ describe('handleUploadAudio', () => {
     let callCount = 0;
     vi.mocked(sdk.media.getTranscodedUpload).mockImplementation(async () => {
       callCount++;
-      if (callCount < 3) return { url: '', status: 'processing' };
-      return { url: 'yoto:#done', status: 'completed' };
+      if (callCount < 3) return { progress: { phase: 'processing', percent: 50 } } as never;
+      return {
+        progress: { phase: 'complete', percent: 100 },
+        transcodedSha256: 'done-hash',
+      } as never;
     });
 
     // Override setTimeout to resolve immediately so polling doesn't wait
@@ -116,7 +121,7 @@ describe('handleUploadAudio', () => {
 
     expect(result.isError).toBeUndefined();
     const data = JSON.parse(result.content[0].text);
-    expect(data.mediaUrl).toBe('yoto:#done');
+    expect(data.mediaUrl).toBe('yoto:#done-hash');
     expect(sdk.media.getTranscodedUpload).toHaveBeenCalledTimes(3);
   });
 
@@ -129,9 +134,9 @@ describe('handleUploadAudio', () => {
     } as never);
     mockFetchOk();
     vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
-      url: 'yoto:#media',
-      status: 'completed',
-    });
+      progress: { phase: 'complete', percent: 100 },
+      transcodedSha256: 'media-hash',
+    } as never);
 
     await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
 
@@ -146,9 +151,9 @@ describe('handleUploadAudio', () => {
     } as never);
     mockFetchOk();
     vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
-      url: 'yoto:#media',
-      status: 'completed',
-    });
+      progress: { phase: 'complete', percent: 100 },
+      transcodedSha256: 'media-hash',
+    } as never);
 
     await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
 
@@ -164,9 +169,9 @@ describe('handleUploadAudio', () => {
     } as never);
     mockFetchOk();
     vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
-      url: 'yoto:#media-2',
-      status: 'completed',
-    });
+      progress: { phase: 'complete', percent: 100 },
+      transcodedSha256: 'media-2-hash',
+    } as never);
 
     await handleUploadAudio(sdk, {
       filePath: '/tmp/audio.mp3',
