@@ -1,6 +1,14 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import type { YotoJson, YotoSdk } from '@yotoplay/yoto-sdk';
+import type { YotoSdk } from '@yotoplay/yoto-sdk';
 import { toolError, toolResult } from './shared.js';
+
+// SDK's YotoJson is too narrow ({ content, metadata }). The real API
+// has top-level fields like title, cardId, userId. This extended type bridges the gap.
+export interface YotoCard {
+  content: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  [key: string]: unknown;
+}
 
 interface CreateCardArgs {
   title: string;
@@ -11,7 +19,7 @@ interface CreateCardArgs {
 
 interface UpdateCardArgs {
   cardId: string;
-  card: YotoJson;
+  card: YotoCard;
 }
 
 export async function handleCreateCard(
@@ -19,8 +27,8 @@ export async function handleCreateCard(
   args: CreateCardArgs,
 ): Promise<CallToolResult> {
   try {
-    // AIDEV-NOTE: title must be top-level for Yoto API. Cast past narrow SDK YotoJson type.
-    const card = {
+    // Title must be top-level for Yoto API
+    const card: YotoCard = {
       title: args.title,
       content: { chapters: [] },
       metadata: {
@@ -28,7 +36,7 @@ export async function handleCreateCard(
         ...(args.category && { category: args.category }),
         ...(args.description && { description: args.description }),
       },
-    } as unknown as YotoJson;
+    };
     const created = await sdk.content.updateCard(card);
     return toolResult(created);
   } catch (err) {
@@ -41,32 +49,31 @@ export async function handleUpdateCard(
   args: UpdateCardArgs,
 ): Promise<CallToolResult> {
   try {
-    // AIDEV-NOTE: Reject conflicting cardId in payload to prevent cross-card updates
-    const incoming = args.card as unknown as Record<string, unknown>;
-    if (incoming.cardId && incoming.cardId !== args.cardId) {
+    // Reject conflicting cardId in payload to prevent cross-card updates
+    if (args.card.cardId && args.card.cardId !== args.cardId) {
       return toolError(
-        `cardId in card JSON ('${incoming.cardId}') does not match cardId parameter ('${args.cardId}')`,
+        `cardId in card JSON ('${args.card.cardId}') does not match cardId parameter ('${args.cardId}')`,
       );
     }
 
     // Fetch existing card to merge onto — prevents data loss from partial updates
-    const existing = (await sdk.content.getCard(args.cardId)) as unknown as Record<string, unknown>;
+    const existing = (await sdk.content.getCard(args.cardId)) as YotoCard;
 
     // Shallow merge: incoming fields override existing, missing fields preserved
-    const merged = {
+    const merged: YotoCard = {
       ...existing,
-      ...incoming,
+      ...args.card,
       content: {
-        ...((existing.content as Record<string, unknown>) ?? {}),
-        ...((incoming.content as Record<string, unknown>) ?? {}),
+        ...(existing.content ?? {}),
+        ...(args.card.content ?? {}),
       },
       metadata: {
-        ...((existing.metadata as Record<string, unknown>) ?? {}),
-        ...((incoming.metadata as Record<string, unknown>) ?? {}),
+        ...(existing.metadata ?? {}),
+        ...(args.card.metadata ?? {}),
       },
-      // AIDEV-NOTE: cardId must be in payload for API to update (not create)
+      // cardId must be in payload for API to update (not create)
       cardId: args.cardId,
-    } as unknown as YotoJson;
+    };
 
     const updated = await sdk.content.updateCard(merged);
     return toolResult(updated);

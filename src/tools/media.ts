@@ -22,7 +22,7 @@ interface TranscodeApiResponse {
   transcodedInfo?: { duration: number; fileSize: number };
 }
 
-// AIDEV-NOTE: MIME map avoids external dependency for Content-Type detection
+// MIME map — avoids external dependency for Content-Type detection
 const AUDIO_MIME_TYPES: Record<string, string> = {
   '.mp3': 'audio/mpeg',
   '.m4a': 'audio/mp4',
@@ -79,13 +79,13 @@ export async function handleUploadAudio(
   args: UploadAudioArgs,
 ): Promise<CallToolResult> {
   try {
-    // AIDEV-NOTE: Reject relative/traversal paths — only accept absolute paths
+    // Reject relative/traversal paths — only accept absolute paths
     const normalizedPath = normalize(args.filePath);
     if (!isAbsolute(normalizedPath)) {
       return toolError('filePath must be an absolute path');
     }
 
-    // AIDEV-NOTE: Size guard prevents loading huge files into memory
+    // Size guard — prevent loading huge files into memory
     const fileStat = await stat(normalizedPath);
     if (fileStat?.size > MAX_FILE_SIZE_BYTES) {
       return toolError(

@@ -1,9 +1,13 @@
-import type { YotoJson } from '@yotoplay/yoto-sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { handleCreateCard, handleDeleteCard, handleUpdateCard } from '../../src/tools/content.js';
+import {
+  handleCreateCard,
+  handleDeleteCard,
+  handleUpdateCard,
+  type YotoCard,
+} from '../../src/tools/content.js';
 import { createMockSdk } from './helpers.js';
 
-const MOCK_CARD: YotoJson = {
+const MOCK_CARD: YotoCard = {
   content: {
     editKey: 'edit-1',
     chapters: [],
@@ -66,7 +70,7 @@ describe('handleCreateCard', () => {
 
 describe('handleUpdateCard', () => {
   it('updates a card and injects cardId into payload', async () => {
-    const card: YotoJson = {
+    const card: YotoCard = {
       content: { editKey: 'edit-1', chapters: [] },
       metadata: { title: 'Updated' },
     };
@@ -139,12 +143,12 @@ describe('handleCreateCard — title placement', () => {
 describe('handleUpdateCard — cardId injection', () => {
   it('injects cardId into the card object before calling SDK', async () => {
     const sdk = createMockSdk();
-    const card: YotoJson = {
+    const card: YotoCard = {
       content: { editKey: 'edit-1', chapters: [] },
       metadata: { title: 'Test' },
     };
     vi.mocked(sdk.content.getCard).mockResolvedValue(card);
-    vi.mocked(sdk.content.updateCard).mockResolvedValue({ ...card, cardId: 'card-42' } as any);
+    vi.mocked(sdk.content.updateCard).mockResolvedValue({ ...card, cardId: 'card-42' } as YotoCard);
 
     await handleUpdateCard(sdk, { cardId: 'card-42', card });
 
@@ -154,12 +158,12 @@ describe('handleUpdateCard — cardId injection', () => {
 
   it('passes cardId matching args.cardId to sdk.content.updateCard', async () => {
     const sdk = createMockSdk();
-    const card: YotoJson = {
+    const card: YotoCard = {
       content: { editKey: 'edit-1', chapters: [] },
       metadata: { title: 'Test' },
     };
     vi.mocked(sdk.content.getCard).mockResolvedValue(card);
-    vi.mocked(sdk.content.updateCard).mockResolvedValue({ ...card, cardId: 'xyz-789' } as any);
+    vi.mocked(sdk.content.updateCard).mockResolvedValue({ ...card, cardId: 'xyz-789' } as YotoCard);
 
     await handleUpdateCard(sdk, { cardId: 'xyz-789', card });
 
@@ -174,7 +178,7 @@ describe('handleUpdateCard — read-merge-write', () => {
     const sdk = createMockSdk();
 
     // Existing card returned by getCard
-    const existingCard: YotoJson = {
+    const existingCard: YotoCard = {
       content: {
         editKey: 'edit-1',
         chapters: [
@@ -202,7 +206,7 @@ describe('handleUpdateCard — read-merge-write', () => {
           { key: 'ch-3', title: 'Chapter 3', tracks: [] },
         ],
       },
-    } as unknown as YotoJson;
+    } as unknown as YotoCard;
 
     const result = await handleUpdateCard(sdk, { cardId: 'card-1', card: partialCard });
 
@@ -212,15 +216,15 @@ describe('handleUpdateCard — read-merge-write', () => {
     // Merged result should preserve existing title/metadata and use new chapters
     const cardSentToUpdate = vi.mocked(sdk.content.updateCard).mock.calls[0][0];
     expect(cardSentToUpdate).toHaveProperty('cardId', 'card-1');
-    expect((cardSentToUpdate as any).metadata?.title).toBe('Original Title');
-    expect((cardSentToUpdate as any).metadata?.author).toBe('Original Author');
-    expect((cardSentToUpdate.content as any).chapters).toHaveLength(3);
+    expect(cardSentToUpdate.metadata?.title).toBe('Original Title');
+    expect(cardSentToUpdate.metadata?.author).toBe('Original Author');
+    expect(cardSentToUpdate.content?.chapters).toHaveLength(3);
   });
 
   it('preserves existing fields not included in update', async () => {
     const sdk = createMockSdk();
 
-    const existingCard: YotoJson = {
+    const existingCard: YotoCard = {
       content: {
         editKey: 'edit-1',
         chapters: [{ key: 'ch-1', title: 'Chapter 1', tracks: [] }],
@@ -242,18 +246,18 @@ describe('handleUpdateCard — read-merge-write', () => {
         editKey: 'edit-2',
         chapters: [{ key: 'ch-1', title: 'Chapter 1 Updated', tracks: [] }],
       },
-    } as unknown as YotoJson;
+    } as unknown as YotoCard;
 
     await handleUpdateCard(sdk, { cardId: 'card-42', card: partialCard });
 
     const cardSentToUpdate = vi.mocked(sdk.content.updateCard).mock.calls[0][0];
     // Original metadata fields should still be present
-    expect((cardSentToUpdate as any).metadata?.title).toBe('My Card');
-    expect((cardSentToUpdate as any).metadata?.author).toBe('Trav');
-    expect((cardSentToUpdate as any).metadata?.category).toBe('music');
-    expect((cardSentToUpdate as any).metadata?.description).toBe('A great card');
+    expect(cardSentToUpdate.metadata?.title).toBe('My Card');
+    expect(cardSentToUpdate.metadata?.author).toBe('Trav');
+    expect(cardSentToUpdate.metadata?.category).toBe('music');
+    expect(cardSentToUpdate.metadata?.description).toBe('A great card');
     // Content should reflect the update
-    expect((cardSentToUpdate.content as any).editKey).toBe('edit-2');
+    expect(cardSentToUpdate.content?.editKey).toBe('edit-2');
   });
 
   it('returns error when getCard fails', async () => {

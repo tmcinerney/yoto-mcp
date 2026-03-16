@@ -2,7 +2,12 @@ import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { handleAccounts, handleAuth, handleAuthComplete } from './tools/auth.js';
-import { handleCreateCard, handleDeleteCard, handleUpdateCard } from './tools/content.js';
+import {
+  handleCreateCard,
+  handleDeleteCard,
+  handleUpdateCard,
+  type YotoCard,
+} from './tools/content.js';
 import { handleListDevices } from './tools/devices.js';
 import { handleListIcons } from './tools/icons.js';
 import { handleGetCard, handleListCards } from './tools/library.js';
@@ -138,7 +143,7 @@ export function createServer(ctx?: ToolContext): McpServer {
       } catch {
         return toolError('Invalid JSON in cardJson parameter');
       }
-      return handleUpdateCard(result.sdk, { cardId: args.cardId, card: card as any });
+      return handleUpdateCard(result.sdk, { cardId: args.cardId, card: card as YotoCard });
     },
   );
 

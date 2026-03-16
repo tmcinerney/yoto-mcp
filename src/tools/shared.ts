@@ -25,10 +25,10 @@ export class ToolContext {
       };
     }
 
-    // AIDEV-NOTE: Update lastUsed timestamp — awaited to prevent race conditions on cleanup
+    // Update lastUsed timestamp — awaited to prevent race conditions on cleanup
     await this.store.touchAccount(account.userId).catch(() => {});
 
-    // AIDEV-NOTE: Always check token freshness — cached SDK may have expired JWT
+    // Always check token freshness — cached SDK may have expired JWT
     const token = await ensureFreshToken(this.authConfig, this.store, account.userId);
     if (!token) {
       return {

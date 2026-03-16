@@ -91,7 +91,7 @@ export async function handleAuthComplete(
 
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
-    // AIDEV-NOTE: Device code flow always returns refresh_token (unlike refresh grant)
+    // Device code flow always returns refresh_token (unlike refresh grant)
     if (!tokens.refresh_token) {
       return toolError(
         'Authentication succeeded but no refresh token was returned. Please try again.',
