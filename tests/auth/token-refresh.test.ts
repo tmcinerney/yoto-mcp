@@ -14,7 +14,6 @@ import type { AuthConfig } from '../../src/auth/types.js';
 
 const AUTH_CONFIG: AuthConfig = {
   clientId: 'test-client-id',
-  clientSecret: undefined,
   authDomain: 'login.yotoplay.com',
   audience: 'https://api.yotoplay.com',
 };
@@ -49,7 +48,6 @@ describe('refreshAccessToken', () => {
     expect(body.get('grant_type')).toBe('refresh_token');
     expect(body.get('refresh_token')).toBe('old-refresh-token');
     expect(body.get('client_id')).toBe('test-client-id');
-    expect(body.get('client_secret')).toBeNull();
   });
 
   it('throws on non-200 response', async () => {

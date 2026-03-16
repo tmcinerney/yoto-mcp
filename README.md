@@ -16,7 +16,7 @@ Uses the official [@yotoplay/yoto-sdk](https://github.com/yotoplay/yoto-sdk) and
 ## Prerequisites
 
 - Node.js >= 22
-- Yoto developer credentials from [dashboard.yoto.dev](https://dashboard.yoto.dev)
+- A Yoto developer app client ID from [dashboard.yoto.dev](https://dashboard.yoto.dev) (register as a **Public Client** — confidential clients don't support device code grant)
 
 ## Quick start
 
@@ -28,7 +28,6 @@ npm install
 
 # Set environment variables
 export YOTO_CLIENT_ID="your-client-id"
-export YOTO_CLIENT_SECRET="your-client-secret"
 
 # Run in development
 npm run dev
@@ -44,7 +43,6 @@ docker compose up -d
 docker pull ghcr.io/tmcinerney/yoto-mcp:latest
 docker run -d \
   -e YOTO_CLIENT_ID="your-client-id" \
-  -e YOTO_CLIENT_SECRET="your-client-secret" \
   -v yoto-config:/config \
   -p 3100:3100 \
   ghcr.io/tmcinerney/yoto-mcp:latest
@@ -82,8 +80,7 @@ docker run -d \
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `YOTO_CLIENT_ID` | Yes | — | Developer client ID from dashboard.yoto.dev |
-| `YOTO_CLIENT_SECRET` | Yes | — | Developer client secret |
+| `YOTO_CLIENT_ID` | Yes | — | Public Client ID from dashboard.yoto.dev |
 | `YOTO_MCP_PORT` | No | `3100` | Port for the HTTP server |
 | `YOTO_CONFIG_DIR` | No | `~/.config/yoto-mcp` | Directory for account credentials |
 
@@ -91,7 +88,8 @@ docker run -d \
 
 | Tool | Description |
 |------|-------------|
-| `yoto_auth` | Authenticate a Yoto account via device code flow |
+| `yoto_auth` | Start device code auth — returns verification URL and user code |
+| `yoto_auth_complete` | Complete auth after user authorizes in browser |
 | `yoto_accounts` | List, switch, or remove authenticated accounts |
 | `yoto_list_cards` | List MYO cards |
 | `yoto_get_card` | Get card details with chapters and tracks |

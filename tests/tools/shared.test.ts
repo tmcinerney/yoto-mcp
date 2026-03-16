@@ -19,7 +19,6 @@ import { ensureFreshToken } from '../../src/auth/token-refresh.js';
 
 const AUTH_CONFIG: AuthConfig = {
   clientId: 'test-client-id',
-  clientSecret: undefined,
   authDomain: 'login.yotoplay.com',
   audience: 'https://api.yotoplay.com',
 };

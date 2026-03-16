@@ -8,7 +8,6 @@ import type { AuthConfig } from '../../src/auth/types.js';
 
 const AUTH_CONFIG: AuthConfig = {
   clientId: 'test-client-id',
-  clientSecret: undefined,
   authDomain: 'login.yotoplay.com',
   audience: 'https://api.yotoplay.com',
 };
@@ -49,7 +48,6 @@ describe('initiateDeviceCode', () => {
     const call = vi.mocked(fetch).mock.calls[0];
     const body = call[1]?.body as URLSearchParams;
     expect(body.get('client_id')).toBe('test-client-id');
-    expect(body.get('client_secret')).toBeNull();
     expect(body.get('scope')).toBe('openid profile email offline_access');
     expect(body.get('audience')).toBe('https://api.yotoplay.com');
   });

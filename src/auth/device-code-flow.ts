@@ -13,7 +13,6 @@ export async function initiateDeviceCode(config: AuthConfig): Promise<DeviceCode
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    // AIDEV-NOTE: No client_secret — device code flow uses public client mode
     body: new URLSearchParams({
       client_id: config.clientId,
       scope: 'openid profile email offline_access',
@@ -62,7 +61,6 @@ export async function pollForToken(
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      // AIDEV-NOTE: No client_secret — public client device code grant
       body: new URLSearchParams({
         grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
         client_id: config.clientId,

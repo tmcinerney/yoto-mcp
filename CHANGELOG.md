@@ -14,5 +14,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Docker multi-stage build with health check
 - CI/CD workflows (lint/test on PR, Docker push on tag)
 - Dependabot configuration for npm and GitHub Actions
-- MCP server skeleton with SSE transport
+- MCP server skeleton with streamable HTTP transport
 - Configuration via environment variables

@@ -17,20 +17,10 @@ describe('loadConfig', () => {
       configDir: '~/.config/yoto-mcp',
       auth: {
         clientId: 'test-id',
-        clientSecret: undefined,
         authDomain: 'login.yotoplay.com',
         audience: 'https://api.yotoplay.com',
       },
     });
-  });
-
-  it('passes through client secret when provided', () => {
-    const config = loadConfig({
-      YOTO_CLIENT_ID: 'test-id',
-      YOTO_CLIENT_SECRET: 'test-secret',
-    });
-
-    expect(config.auth.clientSecret).toBe('test-secret');
   });
 
   it('respects custom port and config dir', () => {

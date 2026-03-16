@@ -20,7 +20,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     configDir: env.YOTO_CONFIG_DIR ?? '~/.config/yoto-mcp',
     auth: {
       clientId: yotoClientId,
-      clientSecret: env.YOTO_CLIENT_SECRET,
       authDomain: env.YOTO_AUTH_DOMAIN ?? AUTH_DEFAULTS.authDomain,
       audience: env.YOTO_AUDIENCE ?? AUTH_DEFAULTS.audience,
     },
