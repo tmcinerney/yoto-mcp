@@ -65,6 +65,52 @@ describe('handleUploadAudio', () => {
     expect(sdk.media.uploadFile).not.toHaveBeenCalled();
   });
 
+  it('skips upload when file already exists (null uploadUrl)', async () => {
+    const sdk = createMockSdk();
+    const mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+    vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
+      uploadUrl: null,
+      uploadId: 'existing-id',
+    } as never);
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue({
+      url: 'yoto:#already-transcoded',
+      status: 'completed',
+    });
+
+    const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
+
+    expect(result.isError).toBeUndefined();
+    const data = JSON.parse(result.content[0].text);
+    expect(data.mediaUrl).toBe('yoto:#already-transcoded');
+    // Should NOT have called fetch — file was already uploaded
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('polls transcode until url is available', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const sdk = createMockSdk();
+    vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({
+      uploadUrl: 'https://s3.example.com/presigned',
+      uploadId: 'poll-id',
+    } as never);
+    mockFetchOk();
+    vi.mocked(sdk.media.getTranscodedUpload)
+      .mockResolvedValueOnce({ url: '', status: 'processing' })
+      .mockResolvedValueOnce({ url: '', status: 'processing' })
+      .mockResolvedValueOnce({ url: 'yoto:#done', status: 'completed' });
+
+    const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
+
+    expect(result.isError).toBeUndefined();
+    const data = JSON.parse(result.content[0].text);
+    expect(data.mediaUrl).toBe('yoto:#done');
+    expect(sdk.media.getTranscodedUpload).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  }, 15_000);
+
   it('uses uploadId from response for transcode polling', async () => {
     const sdk = createMockSdk();
     vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
@@ -119,17 +165,6 @@ describe('handleUploadAudio', () => {
     });
 
     expect(sdk.media.getUploadUrlForTranscode).toHaveBeenCalledWith('abc123hash', 'my-song.mp3');
-  });
-
-  it('returns error when presigned URL is missing', async () => {
-    const sdk = createMockSdk();
-    vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
-    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue({} as never);
-
-    const result = await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
-
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain('Presigned URL missing');
   });
 
   it('returns error when S3 upload fails', async () => {

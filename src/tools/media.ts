@@ -10,6 +10,26 @@ interface UploadAudioArgs {
   filename?: string;
 }
 
+const TRANSCODE_POLL_INTERVAL_MS = 5_000;
+const TRANSCODE_MAX_WAIT_MS = 5 * 60_000;
+
+async function pollTranscode(
+  sdk: YotoSdk,
+  uploadId: string,
+): Promise<{ url: string; status: string }> {
+  const deadline = Date.now() + TRANSCODE_MAX_WAIT_MS;
+
+  while (Date.now() < deadline) {
+    const transcode = await sdk.media.getTranscodedUpload(uploadId);
+    if (transcode.url) {
+      return transcode;
+    }
+    await new Promise((resolve) => setTimeout(resolve, TRANSCODE_POLL_INTERVAL_MS));
+  }
+
+  throw new Error(`Transcode did not complete within ${TRANSCODE_MAX_WAIT_MS / 60_000} minutes`);
+}
+
 export async function handleUploadAudio(
   sdk: YotoSdk,
   args: UploadAudioArgs,
@@ -24,27 +44,26 @@ export async function handleUploadAudio(
     // SDK types say `url` but the API returns `uploadUrl` and `uploadId`
     const upload = await sdk.media.getUploadUrlForTranscode(hash, filename);
     const uploadUrl = (upload as Record<string, unknown>).uploadUrl as string | undefined;
-    const uploadId = (upload as Record<string, unknown>).uploadId as string | undefined;
+    const uploadId = ((upload as Record<string, unknown>).uploadId as string | undefined) ?? hash;
 
-    if (!uploadUrl) {
-      return toolError(`Presigned URL missing from upload response: ${JSON.stringify(upload)}`);
+    // uploadUrl is null when Yoto already has this file (same SHA-256)
+    if (uploadUrl) {
+      // Upload file directly — the SDK's uploadFile sends the Authorization header
+      // along with the presigned URL, which S3 rejects
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'audio/mpeg' },
+        body: fileBuffer,
+      });
+
+      if (!uploadResponse.ok) {
+        const body = await uploadResponse.text();
+        return toolError(`S3 upload failed (${uploadResponse.status}): ${body}`);
+      }
     }
 
-    // Upload file directly — the SDK's uploadFile sends the Authorization header
-    // along with the presigned URL, which S3 rejects
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'audio/mpeg' },
-      body: fileBuffer,
-    });
-
-    if (!uploadResponse.ok) {
-      const body = await uploadResponse.text();
-      return toolError(`S3 upload failed (${uploadResponse.status}): ${body}`);
-    }
-
-    // Poll for transcode completion
-    const transcode = await sdk.media.getTranscodedUpload(uploadId ?? hash);
+    // Poll for transcode completion — may take minutes for large files
+    const transcode = await pollTranscode(sdk, uploadId);
 
     return toolResult({
       mediaUrl: transcode.url,
@@ -53,7 +72,6 @@ export async function handleUploadAudio(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack : '';
-    return toolError(`Failed to upload audio: ${message}\n${stack}`);
+    return toolError(`Failed to upload audio: ${message}`);
   }
 }
