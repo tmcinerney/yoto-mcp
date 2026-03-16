@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-03-16
+
+### Changed
+- Introduced `YotoCard` interface — proper typing for Yoto API cards with top-level fields
+- Removed all `as any` casts in favor of `YotoCard` typing
+- Removed AIDEV-prefixed comments (not appropriate for public repo)
+- Added husky pre-push hook running full lint + typecheck + test suite
+- CI workflow simplified to use `npm run check` (same as release)
+
 ## [0.5.0] - 2026-03-16
 
 ### Fixed
