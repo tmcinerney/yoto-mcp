@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { handleAccounts, handleAuth, handleAuthComplete } from './tools/auth.js';
@@ -9,6 +10,9 @@ import { handleUploadAudio } from './tools/media.js';
 import type { ToolContext } from './tools/shared.js';
 import { toolError } from './tools/shared.js';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
+
 const AccountParam = {
   account: z.string().optional().describe('Account ID (uses default if omitted)'),
 };
@@ -16,7 +20,7 @@ const AccountParam = {
 export function createServer(ctx?: ToolContext): McpServer {
   const server = new McpServer({
     name: 'yoto-mcp',
-    version: '0.4.1',
+    version,
   });
 
   if (!ctx) return server;

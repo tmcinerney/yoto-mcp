@@ -4,6 +4,7 @@ import { createMockSdk } from './helpers.js';
 
 vi.mock('node:fs/promises', () => ({
   readFile: vi.fn(),
+  stat: vi.fn(),
 }));
 
 vi.mock('node:crypto', () => ({
@@ -13,7 +14,7 @@ vi.mock('node:crypto', () => ({
   })),
 }));
 
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 
 // Helpers matching actual Yoto API response shapes
 function mockUploadUrl(uploadUrl: string | null, uploadId = 'test-upload-id') {
@@ -43,7 +44,10 @@ function mockFetchError(status: number, body: string) {
 describe('handleUploadAudio', () => {
   beforeEach(() => {
     vi.mocked(readFile).mockClear();
+    vi.mocked(stat).mockClear();
     vi.restoreAllMocks();
+    // Default stat mock: small file under size limit
+    vi.mocked(stat).mockResolvedValue({ size: 1024 } as never);
   });
 
   it('uploads and returns yoto:# media URL from transcode', async () => {
@@ -72,6 +76,7 @@ describe('handleUploadAudio', () => {
       method: 'PUT',
       headers: { 'Content-Type': 'audio/mpeg' },
       body: fileBuffer,
+      signal: expect.any(AbortSignal),
     });
     expect(sdk.media.uploadFile).not.toHaveBeenCalled();
   });
@@ -228,5 +233,106 @@ describe('handleUploadAudio', () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('Transcode API error');
+  });
+
+  // --- Batch 3: Content-Type from file extension ---
+
+  it('uses audio/mpeg Content-Type for .mp3 files', async () => {
+    const sdk = createMockSdk();
+    const fileBuffer = Buffer.from('fake-mp3');
+
+    vi.mocked(readFile).mockResolvedValue(fileBuffer);
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned'),
+    );
+    mockFetchOk();
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(mockTranscodeComplete('hash'));
+
+    await handleUploadAudio(sdk, { filePath: '/tmp/song.mp3' });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://s3.example.com/presigned',
+      expect.objectContaining({
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }),
+    );
+  });
+
+  it('uses audio/mp4 Content-Type for .m4a files', async () => {
+    const sdk = createMockSdk();
+    const fileBuffer = Buffer.from('fake-m4a');
+
+    vi.mocked(readFile).mockResolvedValue(fileBuffer);
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned'),
+    );
+    mockFetchOk();
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(mockTranscodeComplete('hash'));
+
+    await handleUploadAudio(sdk, { filePath: '/tmp/audiobook.m4a' });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://s3.example.com/presigned',
+      expect.objectContaining({
+        headers: { 'Content-Type': 'audio/mp4' },
+      }),
+    );
+  });
+
+  it('uses application/octet-stream for unknown extensions', async () => {
+    const sdk = createMockSdk();
+    const fileBuffer = Buffer.from('fake-unknown');
+
+    vi.mocked(readFile).mockResolvedValue(fileBuffer);
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned'),
+    );
+    mockFetchOk();
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(mockTranscodeComplete('hash'));
+
+    await handleUploadAudio(sdk, { filePath: '/tmp/mystery.xyz' });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://s3.example.com/presigned',
+      expect.objectContaining({
+        headers: { 'Content-Type': 'application/octet-stream' },
+      }),
+    );
+  });
+
+  // --- Batch 3: Upload timeout ---
+
+  it('aborts S3 upload after timeout', async () => {
+    const sdk = createMockSdk();
+    const fileBuffer = Buffer.from('fake-audio');
+
+    vi.mocked(readFile).mockResolvedValue(fileBuffer);
+    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+      mockUploadUrl('https://s3.example.com/presigned'),
+    );
+    mockFetchOk();
+    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(mockTranscodeComplete('hash'));
+
+    await handleUploadAudio(sdk, { filePath: '/tmp/audio.mp3' });
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0];
+    const fetchOptions = fetchCall[1] as RequestInit;
+    expect(fetchOptions.signal).toBeDefined();
+    expect(fetchOptions.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  // --- Batch 3: File size guard ---
+
+  it('rejects files exceeding size limit', async () => {
+    const sdk = createMockSdk();
+    const SIZE_600MB = 600 * 1024 * 1024;
+
+    vi.mocked(stat).mockResolvedValue({ size: SIZE_600MB } as never);
+    vi.mocked(readFile).mockResolvedValue(Buffer.from('data'));
+
+    const result = await handleUploadAudio(sdk, { filePath: '/tmp/huge-file.mp3' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/size|too large|limit|exceed/i);
   });
 });

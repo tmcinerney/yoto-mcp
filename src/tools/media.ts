@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { basename } from 'node:path';
+import { readFile, stat } from 'node:fs/promises';
+import { basename, extname } from 'node:path';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { YotoSdk } from '@yotoplay/yoto-sdk';
 import { toolError, toolResult } from './shared.js';
@@ -21,6 +21,26 @@ interface TranscodeApiResponse {
   transcodedSha256?: string;
   transcodedInfo?: { duration: number; fileSize: number };
 }
+
+// AIDEV-NOTE: MIME map avoids external dependency for Content-Type detection
+const AUDIO_MIME_TYPES: Record<string, string> = {
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+  '.mp4': 'audio/mp4',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.flac': 'audio/flac',
+  '.aac': 'audio/aac',
+  '.wma': 'audio/x-ms-wma',
+};
+
+function getAudioMimeType(filePath: string): string {
+  const ext = extname(filePath).toLowerCase();
+  return AUDIO_MIME_TYPES[ext] ?? 'application/octet-stream';
+}
+
+export const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500MB
+const UPLOAD_TIMEOUT_MS = 5 * 60_000;
 
 const TRANSCODE_POLL_INTERVAL_MS = 10_000;
 const TRANSCODE_MAX_WAIT_MS = 15 * 60_000;
@@ -59,6 +79,12 @@ export async function handleUploadAudio(
   args: UploadAudioArgs,
 ): Promise<CallToolResult> {
   try {
+    // AIDEV-NOTE: Size guard prevents loading huge files into memory
+    const fileStat = await stat(args.filePath);
+    if (fileStat?.size > MAX_FILE_SIZE_BYTES) {
+      return toolError(`File too large (${Math.round(fileStat.size / 1024 / 1024)}MB). Maximum is ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB.`);
+    }
+
     const fileBuffer = await readFile(args.filePath);
     const hash = createHash('sha256').update(fileBuffer).digest('hex');
     const filename = args.filename ?? basename(args.filePath);
@@ -73,15 +99,22 @@ export async function handleUploadAudio(
     if (upload.uploadUrl) {
       // Upload directly with fetch — the SDK's uploadFile leaks the
       // Authorization header to the presigned S3 URL, causing a 400
-      const response = await fetch(upload.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'audio/mpeg' },
-        body: fileBuffer,
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+      try {
+        const response = await fetch(upload.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': getAudioMimeType(args.filePath) },
+          body: fileBuffer,
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        const body = await response.text();
-        return toolError(`S3 upload failed (${response.status}): ${body}`);
+        if (!response.ok) {
+          const body = await response.text();
+          return toolError(`S3 upload failed (${response.status}): ${body}`);
+        }
+      } finally {
+        clearTimeout(timeout);
       }
     }
 

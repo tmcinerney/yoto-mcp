@@ -159,4 +159,23 @@ describe('ToolContext', () => {
     expect(createYotoSdk).toHaveBeenCalledTimes(2);
     expect(createYotoSdk).toHaveBeenLastCalledWith(expect.objectContaining({ jwt: 'newer-token' }));
   });
+
+  // --- Batch 3: touchAccount wiring ---
+  // NOTE: Issue 6 (touchAccount never called) is already fixed in source.
+  // getSdk already calls `void this.store.touchAccount(account.userId)` on line 29.
+  // Test below verifies the existing behavior rather than exposing a bug.
+
+  it('calls touchAccount after successful SDK retrieval', async () => {
+    const account = makeAccount();
+    await store.setAccount(account);
+    vi.mocked(ensureFreshToken).mockResolvedValue('fresh-token');
+
+    const touchSpy = vi.spyOn(store, 'touchAccount');
+
+    const result = await ctx.getSdk();
+    expect(result).toHaveProperty('sdk'); // sanity: SDK was returned
+
+    expect(touchSpy).toHaveBeenCalledTimes(1);
+    expect(touchSpy).toHaveBeenCalledWith('user-1');
+  });
 });

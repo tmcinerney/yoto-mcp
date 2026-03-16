@@ -25,6 +25,9 @@ export class ToolContext {
       };
     }
 
+    // AIDEV-NOTE: Update lastUsed timestamp — awaited to prevent race conditions on cleanup
+    await this.store.touchAccount(account.userId).catch(() => {});
+
     const cached = this.sdkCache.get(account.userId);
     if (cached) {
       return { sdk: cached, account: { userId: account.userId, email: account.email } };

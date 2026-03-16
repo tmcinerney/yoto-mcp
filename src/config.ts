@@ -15,7 +15,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   }
 
   return {
-    port: Number.parseInt(env.YOTO_MCP_PORT ?? '3100', 10),
+    port: (() => {
+      const portRaw = Number.parseInt(env.YOTO_MCP_PORT ?? '3100', 10);
+      return Number.isFinite(portRaw) && portRaw > 0 && portRaw < 65536 ? portRaw : 3100;
+    })(),
     yotoClientId,
     configDir: env.YOTO_CONFIG_DIR ?? '~/.config/yoto-mcp',
     auth: {
