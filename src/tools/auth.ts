@@ -10,11 +10,22 @@ const pendingDeviceCodes = new Map<
   { deviceCode: string; interval: number; expiresIn: number; createdAt: number }
 >();
 
+/** Prune expired pending device codes to prevent unbounded memory growth */
+function pruneExpiredCodes(): void {
+  const now = Date.now();
+  for (const [code, entry] of pendingDeviceCodes) {
+    if ((now - entry.createdAt) / 1000 >= entry.expiresIn) {
+      pendingDeviceCodes.delete(code);
+    }
+  }
+}
+
 export async function handleAuth(
   _store: TokenStore,
   authConfig: AuthConfig,
 ): Promise<CallToolResult> {
   try {
+    pruneExpiredCodes();
     const deviceCode = await initiateDeviceCode(authConfig);
 
     // Store the device code for the poll phase

@@ -20,11 +20,19 @@ const ctx = new ToolContext(store, config.auth);
 const mcpServer = createServer(ctx);
 
 // Periodic refresh invalidates cached SDKs so they get fresh tokens
-void startPeriodicRefresh(config.auth, store, (refreshedIds) => {
+const stopRefresh = startPeriodicRefresh(config.auth, store, (refreshedIds) => {
   for (const id of refreshedIds) {
     ctx.invalidateSdk(id);
   }
 });
+
+// Graceful shutdown — clean up timer to allow process to exit
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    stopRefresh();
+    process.exit(0);
+  });
+}
 
 if (useStdio) {
   const transport = new StdioServerTransport();

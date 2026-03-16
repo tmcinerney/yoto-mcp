@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
-import { basename, extname } from 'node:path';
+import { basename, extname, isAbsolute, normalize } from 'node:path';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { YotoSdk } from '@yotoplay/yoto-sdk';
 import { toolError, toolResult } from './shared.js';
@@ -79,15 +79,21 @@ export async function handleUploadAudio(
   args: UploadAudioArgs,
 ): Promise<CallToolResult> {
   try {
+    // AIDEV-NOTE: Reject relative/traversal paths — only accept absolute paths
+    const normalizedPath = normalize(args.filePath);
+    if (!isAbsolute(normalizedPath)) {
+      return toolError('filePath must be an absolute path');
+    }
+
     // AIDEV-NOTE: Size guard prevents loading huge files into memory
-    const fileStat = await stat(args.filePath);
+    const fileStat = await stat(normalizedPath);
     if (fileStat?.size > MAX_FILE_SIZE_BYTES) {
       return toolError(`File too large (${Math.round(fileStat.size / 1024 / 1024)}MB). Maximum is ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB.`);
     }
 
-    const fileBuffer = await readFile(args.filePath);
+    const fileBuffer = await readFile(normalizedPath);
     const hash = createHash('sha256').update(fileBuffer).digest('hex');
-    const filename = args.filename ?? basename(args.filePath);
+    const filename = args.filename ?? basename(normalizedPath);
 
     // SDK types don't match the real API — cast to actual response shape
     const upload = (await sdk.media.getUploadUrlForTranscode(
@@ -104,7 +110,7 @@ export async function handleUploadAudio(
       try {
         const response = await fetch(upload.uploadUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': getAudioMimeType(args.filePath) },
+          headers: { 'Content-Type': getAudioMimeType(normalizedPath) },
           body: fileBuffer,
           signal: controller.signal,
         });

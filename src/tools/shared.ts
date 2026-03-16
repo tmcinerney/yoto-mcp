@@ -28,11 +28,7 @@ export class ToolContext {
     // AIDEV-NOTE: Update lastUsed timestamp — awaited to prevent race conditions on cleanup
     await this.store.touchAccount(account.userId).catch(() => {});
 
-    const cached = this.sdkCache.get(account.userId);
-    if (cached) {
-      return { sdk: cached, account: { userId: account.userId, email: account.email } };
-    }
-
+    // AIDEV-NOTE: Always check token freshness — cached SDK may have expired JWT
     const token = await ensureFreshToken(this.authConfig, this.store, account.userId);
     if (!token) {
       return {
@@ -40,6 +36,12 @@ export class ToolContext {
       };
     }
 
+    const cached = this.sdkCache.get(account.userId);
+    if (cached && account.accessToken === token) {
+      return { sdk: cached, account: { userId: account.userId, email: account.email } };
+    }
+
+    // Token was refreshed or no cache — create new SDK instance
     const sdk = createYotoSdk({ jwt: token });
     this.sdkCache.set(account.userId, sdk);
     return { sdk, account: { userId: account.userId, email: account.email } };

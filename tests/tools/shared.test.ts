@@ -139,7 +139,8 @@ describe('ToolContext', () => {
   it('caches SDK instances per account', async () => {
     const account = makeAccount();
     await store.setAccount(account);
-    vi.mocked(ensureFreshToken).mockResolvedValue('fresh-token');
+    // Return same token as account.accessToken so cache hit works
+    vi.mocked(ensureFreshToken).mockResolvedValue(account.accessToken);
 
     await ctx.getSdk();
     await ctx.getSdk();

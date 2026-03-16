@@ -132,12 +132,13 @@ export function createServer(ctx?: ToolContext): McpServer {
     async (args) => {
       const result = await ctx.getSdk(args.account);
       if ('error' in result) return toolError(result.error);
+      let card: unknown;
       try {
-        const card = JSON.parse(args.cardJson);
-        return handleUpdateCard(result.sdk, { cardId: args.cardId, card });
+        card = JSON.parse(args.cardJson);
       } catch {
         return toolError('Invalid JSON in cardJson parameter');
       }
+      return handleUpdateCard(result.sdk, { cardId: args.cardId, card: card as any });
     },
   );
 
