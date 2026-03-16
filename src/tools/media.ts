@@ -23,6 +23,10 @@ export async function handleUploadAudio(
     // Get presigned upload URL
     const upload = await sdk.media.getUploadUrlForTranscode(hash, filename);
 
+    if (!upload.url) {
+      return toolError(`Presigned URL missing from upload response: ${JSON.stringify(upload)}`);
+    }
+
     // Upload file to presigned URL
     await sdk.media.uploadFile(upload.url, fileBuffer as Buffer);
 
@@ -37,6 +41,8 @@ export async function handleUploadAudio(
       filename,
     });
   } catch (err) {
-    return toolError(`Failed to upload audio: ${(err as Error).message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : '';
+    return toolError(`Failed to upload audio: ${message}\n${stack}`);
   }
 }
