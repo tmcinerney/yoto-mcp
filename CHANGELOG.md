@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-03-15
+
+### Changed
+- Clean API response types — explicit interfaces for actual Yoto API responses instead of casting through `Record<string, unknown>`
+- Removed dead SDK type fallbacks (`transcode.url`, `upload.fields`)
+- Version assertion in stdio test reads from `package.json` instead of hard-coding
+
+### Added
+- Test for missing `transcodedSha256` error case
+
+## [0.4.0] - 2026-03-15
+
+### Fixed
+- Construct `yoto:#hash` media URLs from `transcodedSha256` — the SDK types declare `{url, status}` but the real API returns `{progress, transcodedSha256, transcodedInfo}`
+
+## [0.3.3] - 2026-03-15
+
+### Changed
+- Increased transcode poll timeout from 5 to 15 minutes for large audio files
+- Increased poll interval from 5s to 10s to reduce API load
+
+## [0.3.2] - 2026-03-15
+
+### Fixed
+- Poll `getTranscodedUpload` until `progress.phase === 'complete'` instead of checking once
+- Skip S3 upload when presigned URL is null (file already uploaded, same SHA-256)
+
+## [0.3.1] - 2026-03-15
+
+### Fixed
+- Bypass SDK's `uploadFile` which leaks the Authorization header to presigned S3 URLs, causing 400 InvalidArgument
+- Use `uploadUrl` and `uploadId` fields from actual API response (SDK types incorrectly declare `url` and `fields`)
+- Better error reporting with stack traces on upload failure
+
 ## [0.3.0] - 2026-03-15
 
 ### Added
