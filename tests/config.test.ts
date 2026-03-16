@@ -6,34 +6,36 @@ describe('loadConfig', () => {
     expect(() => loadConfig({})).toThrow('YOTO_CLIENT_ID');
   });
 
-  it('throws when YOTO_CLIENT_SECRET is missing', () => {
-    expect(() => loadConfig({ YOTO_CLIENT_ID: 'test-id' })).toThrow('YOTO_CLIENT_SECRET');
-  });
-
   it('returns config with defaults when required env vars are set', () => {
     const config = loadConfig({
       YOTO_CLIENT_ID: 'test-id',
-      YOTO_CLIENT_SECRET: 'test-secret',
     });
 
     expect(config).toEqual({
       port: 3100,
       yotoClientId: 'test-id',
-      yotoClientSecret: 'test-secret',
       configDir: '~/.config/yoto-mcp',
       auth: {
         clientId: 'test-id',
-        clientSecret: 'test-secret',
+        clientSecret: undefined,
         authDomain: 'login.yotoplay.com',
         audience: 'https://api.yotoplay.com',
       },
     });
   });
 
-  it('respects custom port and config dir', () => {
+  it('passes through client secret when provided', () => {
     const config = loadConfig({
       YOTO_CLIENT_ID: 'test-id',
       YOTO_CLIENT_SECRET: 'test-secret',
+    });
+
+    expect(config.auth.clientSecret).toBe('test-secret');
+  });
+
+  it('respects custom port and config dir', () => {
+    const config = loadConfig({
+      YOTO_CLIENT_ID: 'test-id',
       YOTO_MCP_PORT: '4200',
       YOTO_CONFIG_DIR: '/custom/config',
     });
@@ -45,7 +47,6 @@ describe('loadConfig', () => {
   it('respects custom auth domain and audience', () => {
     const config = loadConfig({
       YOTO_CLIENT_ID: 'test-id',
-      YOTO_CLIENT_SECRET: 'test-secret',
       YOTO_AUTH_DOMAIN: 'custom-auth.example.com',
       YOTO_AUDIENCE: 'https://custom-api.example.com',
     });

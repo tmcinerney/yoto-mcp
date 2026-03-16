@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { createServer as createHttpServer } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { startPeriodicRefresh } from './auth/token-refresh.js';
@@ -22,8 +23,10 @@ void startPeriodicRefresh(config.auth, store, (refreshedIds) => {
   }
 });
 
+// AIDEV-NOTE: Stateful transport — session tracking required for multi-request flows
+// (e.g. yoto_auth returns URL, then yoto_auth_complete polls with the same device code)
 const transport = new StreamableHTTPServerTransport({
-  sessionIdGenerator: undefined,
+  sessionIdGenerator: () => randomUUID(),
 });
 
 await mcpServer.connect(transport);

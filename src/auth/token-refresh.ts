@@ -11,10 +11,10 @@ export async function refreshAccessToken(
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    // AIDEV-NOTE: No client_secret — public client refresh grant
     body: new URLSearchParams({
       grant_type: 'refresh_token',
       client_id: config.clientId,
-      client_secret: config.clientSecret,
       refresh_token: refreshToken,
     }),
   });

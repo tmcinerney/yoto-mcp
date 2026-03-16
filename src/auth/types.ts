@@ -51,7 +51,7 @@ export interface UserInfo {
 /** Auth configuration derived from server config + defaults */
 export interface AuthConfig {
   clientId: string;
-  clientSecret: string;
+  clientSecret?: string;
   authDomain: string;
   audience: string;
 }

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TokenStore } from '../../src/auth/token-store.js';
 import type { AccountRecord, AuthConfig } from '../../src/auth/types.js';
-import { handleAccounts, handleAuth } from '../../src/tools/auth.js';
+import { handleAccounts, handleAuth, handleAuthComplete } from '../../src/tools/auth.js';
 
 vi.mock('../../src/auth/device-code-flow.js', () => ({
   initiateDeviceCode: vi.fn(),
@@ -20,7 +20,7 @@ import {
 
 const AUTH_CONFIG: AuthConfig = {
   clientId: 'test-client-id',
-  clientSecret: 'test-client-secret',
+  clientSecret: undefined,
   authDomain: 'login.yotoplay.com',
   audience: 'https://api.yotoplay.com',
 };
@@ -59,7 +59,7 @@ describe('handleAuth', () => {
     await rm(configDir, { recursive: true, force: true });
   });
 
-  it('initiates device code flow and returns verification info', async () => {
+  it('returns verification URL and user code without blocking', async () => {
     vi.mocked(initiateDeviceCode).mockResolvedValue({
       device_code: 'dev-123',
       user_code: 'ABCD-EFGH',
@@ -69,6 +69,62 @@ describe('handleAuth', () => {
       interval: 5,
     });
 
+    const result = await handleAuth(store, AUTH_CONFIG);
+
+    expect(result.isError).toBeUndefined();
+    const data = JSON.parse(result.content[0].text);
+    expect(data.verificationUrl).toBe('https://login.yotoplay.com/activate?user_code=ABCD-EFGH');
+    expect(data.userCode).toBe('ABCD-EFGH');
+    expect(data.expiresInSeconds).toBe(300);
+
+    // Should NOT have called pollForToken — that's handleAuthComplete's job
+    expect(pollForToken).not.toHaveBeenCalled();
+  });
+
+  it('returns error when device code initiation fails', async () => {
+    vi.mocked(initiateDeviceCode).mockRejectedValue(new Error('unauthorized_client'));
+
+    const result = await handleAuth(store, AUTH_CONFIG);
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('unauthorized_client');
+  });
+});
+
+describe('handleAuthComplete', () => {
+  let configDir: string;
+  let store: TokenStore;
+
+  beforeEach(async () => {
+    configDir = join(
+      tmpdir(),
+      `yoto-mcp-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
+    store = new TokenStore(configDir);
+    await store.load();
+
+    vi.mocked(initiateDeviceCode).mockClear();
+    vi.mocked(pollForToken).mockClear();
+    vi.mocked(fetchUserInfo).mockClear();
+  });
+
+  afterEach(async () => {
+    await rm(configDir, { recursive: true, force: true });
+  });
+
+  it('completes auth flow and saves account', async () => {
+    // First, initiate the flow to store pending device code
+    vi.mocked(initiateDeviceCode).mockResolvedValue({
+      device_code: 'dev-123',
+      user_code: 'WXYZ-1234',
+      verification_uri: 'https://login.yotoplay.com/activate',
+      verification_uri_complete: 'https://login.yotoplay.com/activate?user_code=WXYZ-1234',
+      expires_in: 300,
+      interval: 5,
+    });
+    await handleAuth(store, AUTH_CONFIG);
+
+    // Now complete the flow
     vi.mocked(pollForToken).mockResolvedValue({
       status: 'success',
       tokens: {
@@ -85,34 +141,42 @@ describe('handleAuth', () => {
       name: 'New User',
     });
 
-    const result = await handleAuth(store, AUTH_CONFIG);
+    const result = await handleAuthComplete(store, AUTH_CONFIG, { userCode: 'WXYZ-1234' });
 
     expect(result.isError).toBeUndefined();
-    const text = result.content[0].text;
-    expect(text).toContain('new@example.com');
+    const data = JSON.parse(result.content[0].text);
+    expect(data.email).toBe('new@example.com');
 
     // Account should be saved to store
     const account = store.getAccount('auth0|user-new');
     expect(account).toBeDefined();
-    expect(account!.email).toBe('new@example.com');
+    expect(account?.email).toBe('new@example.com');
+  });
+
+  it('returns error for unknown user code', async () => {
+    const result = await handleAuthComplete(store, AUTH_CONFIG, { userCode: 'NOPE-1234' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('No pending authentication');
   });
 
   it('returns error when device code flow is denied', async () => {
     vi.mocked(initiateDeviceCode).mockResolvedValue({
       device_code: 'dev-123',
-      user_code: 'ABCD-EFGH',
+      user_code: 'DENY-CODE',
       verification_uri: 'https://login.yotoplay.com/activate',
-      verification_uri_complete: 'https://login.yotoplay.com/activate?user_code=ABCD-EFGH',
+      verification_uri_complete: 'https://login.yotoplay.com/activate?user_code=DENY-CODE',
       expires_in: 300,
       interval: 5,
     });
+    await handleAuth(store, AUTH_CONFIG);
 
     vi.mocked(pollForToken).mockResolvedValue({
       status: 'denied',
       message: 'User denied access',
     });
 
-    const result = await handleAuth(store, AUTH_CONFIG);
+    const result = await handleAuthComplete(store, AUTH_CONFIG, { userCode: 'DENY-CODE' });
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('denied');
@@ -121,19 +185,20 @@ describe('handleAuth', () => {
   it('returns error when device code flow expires', async () => {
     vi.mocked(initiateDeviceCode).mockResolvedValue({
       device_code: 'dev-123',
-      user_code: 'ABCD-EFGH',
+      user_code: 'EXPR-CODE',
       verification_uri: 'https://login.yotoplay.com/activate',
-      verification_uri_complete: 'https://login.yotoplay.com/activate?user_code=ABCD-EFGH',
+      verification_uri_complete: 'https://login.yotoplay.com/activate?user_code=EXPR-CODE',
       expires_in: 300,
       interval: 5,
     });
+    await handleAuth(store, AUTH_CONFIG);
 
     vi.mocked(pollForToken).mockResolvedValue({
       status: 'expired',
       message: 'Code expired',
     });
 
-    const result = await handleAuth(store, AUTH_CONFIG);
+    const result = await handleAuthComplete(store, AUTH_CONFIG, { userCode: 'EXPR-CODE' });
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('expired');
@@ -189,7 +254,7 @@ describe('handleAccounts', () => {
     expect(result.content[0].text).toContain('user-2');
 
     const account = store.getAccount();
-    expect(account!.userId).toBe('user-2');
+    expect(account?.userId).toBe('user-2');
   });
 
   it('returns error when switching to nonexistent account', async () => {

@@ -1,6 +1,7 @@
 services:
   yoto-mcp:
     build: .
+    image: yoto-mcp:local
     ports:
       - '${YOTO_MCP_PORT:-3100}:3100'
     environment:

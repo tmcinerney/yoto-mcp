@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { handleAccounts, handleAuth } from './tools/auth.js';
+import { handleAccounts, handleAuth, handleAuthComplete } from './tools/auth.js';
 import { handleCreateCard, handleDeleteCard, handleUpdateCard } from './tools/content.js';
 import { handleListDevices } from './tools/devices.js';
 import { handleListIcons } from './tools/icons.js';
@@ -28,10 +28,24 @@ export function createServer(ctx?: ToolContext): McpServer {
     'yoto_auth',
     {
       description:
-        'Authenticate a Yoto account via device code flow. Returns a URL and code to enter in a browser.',
+        'Start device code flow for a Yoto account. Returns a verification URL and user code. After the user authorizes in their browser, call yoto_auth_complete with the user_code to finish.',
     },
     async () => {
       return handleAuth(ctx.store, ctx.authConfig);
+    },
+  );
+
+  server.registerTool(
+    'yoto_auth_complete',
+    {
+      description:
+        'Complete the device code auth flow after the user has authorized in their browser. Requires the user_code from yoto_auth.',
+      inputSchema: {
+        userCode: z.string().describe('The user_code returned by yoto_auth'),
+      },
+    },
+    async (args) => {
+      return handleAuthComplete(ctx.store, ctx.authConfig, args);
     },
   );
 

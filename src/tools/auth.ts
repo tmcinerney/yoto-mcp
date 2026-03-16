@@ -4,25 +4,78 @@ import type { TokenStore } from '../auth/token-store.js';
 import type { AuthConfig } from '../auth/types.js';
 import { toolError, toolResult } from './shared.js';
 
+// AIDEV-NOTE: Pending device codes stored in memory — lost on server restart
+const pendingDeviceCodes = new Map<
+  string,
+  { deviceCode: string; interval: number; expiresIn: number; createdAt: number }
+>();
+
 export async function handleAuth(
-  store: TokenStore,
+  _store: TokenStore,
   authConfig: AuthConfig,
 ): Promise<CallToolResult> {
   try {
     const deviceCode = await initiateDeviceCode(authConfig);
 
+    // Store the device code for the poll phase
+    pendingDeviceCodes.set(deviceCode.user_code, {
+      deviceCode: deviceCode.device_code,
+      interval: deviceCode.interval,
+      expiresIn: deviceCode.expires_in,
+      createdAt: Date.now(),
+    });
+
+    return toolResult({
+      message: 'Please authorize in your browser, then call yoto_auth_complete with the user_code.',
+      verificationUrl: deviceCode.verification_uri_complete,
+      userCode: deviceCode.user_code,
+      expiresInSeconds: deviceCode.expires_in,
+    });
+  } catch (err) {
+    return toolError(`Authentication failed: ${(err as Error).message}`);
+  }
+}
+
+interface AuthCompleteArgs {
+  userCode: string;
+}
+
+export async function handleAuthComplete(
+  store: TokenStore,
+  authConfig: AuthConfig,
+  args: AuthCompleteArgs,
+): Promise<CallToolResult> {
+  try {
+    const pending = pendingDeviceCodes.get(args.userCode);
+    if (!pending) {
+      return toolError(
+        `No pending authentication for user code '${args.userCode}'. Call yoto_auth first.`,
+      );
+    }
+
+    // Check if expired
+    const elapsed = (Date.now() - pending.createdAt) / 1000;
+    if (elapsed >= pending.expiresIn) {
+      pendingDeviceCodes.delete(args.userCode);
+      return toolError('Device code expired. Please call yoto_auth again.');
+    }
+
+    const remainingExpiry = Math.ceil(pending.expiresIn - elapsed);
+
     const pollResult = await pollForToken(
       authConfig,
-      deviceCode.device_code,
-      deviceCode.interval,
-      deviceCode.expires_in,
+      pending.deviceCode,
+      pending.interval,
+      remainingExpiry,
     );
+
+    pendingDeviceCodes.delete(args.userCode);
 
     if (pollResult.status !== 'success') {
       return toolError(`Authentication ${pollResult.status}: ${pollResult.message}`);
     }
 
-    const tokens = pollResult.tokens!;
+    const { tokens } = pollResult;
     const userInfo = await fetchUserInfo(authConfig.authDomain, tokens.access_token);
 
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
