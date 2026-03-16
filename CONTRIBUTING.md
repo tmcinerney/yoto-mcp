@@ -107,6 +107,14 @@ The `v*` tag triggers `.github/workflows/release.yml` which:
 - Runs `npm run check` (lint + typecheck + test)
 - Builds multi-arch Docker image (linux/amd64 + linux/arm64 via QEMU + Buildx)
 - Pushes to `ghcr.io/tmcinerney/yoto-mcp` with tags: `X.Y.Z`, `X.Y`, `X`, `latest`
+- Publishes to npm as `yoto-mcp` (enables `npx -y yoto-mcp --stdio`)
+
+### GitHub secrets required for releases
+
+| Secret | Purpose |
+|--------|---------|
+| `GITHUB_TOKEN` | Built-in, used for GHCR Docker push |
+| `NPM_TOKEN` | npm granular access token for `npm publish` |
 
 ### CI
 

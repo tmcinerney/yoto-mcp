@@ -11,24 +11,28 @@ Uses the official [@yotoplay/yoto-sdk](https://github.com/yotoplay/yoto-sdk) and
 - MYO card management — create, update, delete cards and playlists
 - Audio upload — upload MP3/M4A files with automatic transcoding
 - Device listing — see your Yoto players and their status
-- Streamable HTTP transport — connect from any MCP-compatible client over HTTP
+- Dual transport — stdio (for `npx` / MCP clients) or streamable HTTP (for Docker / remote)
 
 ## Quick start
 
+### Via npx (stdio)
+
 ```bash
-git clone https://github.com/tmcinerney/yoto-mcp.git
-cd yoto-mcp
-npm install
-cp .env.example .env
-# Edit .env with your YOTO_CLIENT_ID (Public Client from dashboard.yoto.dev)
-npm run dev
+YOTO_CLIENT_ID="your-client-id" npx -y yoto-mcp --stdio
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full development setup, tooling, and release process.
+### Via Docker (HTTP)
 
-## Deployment
+```bash
+docker run -d \
+  -e YOTO_CLIENT_ID="your-client-id" \
+  -v yoto-config:/config \
+  -p 3100:3100 \
+  ghcr.io/tmcinerney/yoto-mcp:latest
+```
 
-Docker image on GHCR. See [DEPLOY.md](DEPLOY.md) for Docker and MCP client configuration.
+See [DEPLOY.md](DEPLOY.md) for full deployment and MCP client configuration.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, tooling, and release process.
 
 ## Available tools
 

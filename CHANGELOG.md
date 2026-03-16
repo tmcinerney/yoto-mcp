@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-15
+
+### Added
+- Stdio transport (`--stdio` flag) — use with `npx -y yoto-mcp --stdio`
+- Published to npm as `yoto-mcp`
+- `bin` field in package.json for npx support
+- Release workflow publishes to both GHCR (Docker) and npm in parallel
+- Integration tests for stdio and HTTP transport modes
+
+### Changed
+- Release workflow split into check → docker + npm parallel jobs
+
 ## [0.2.0] - 2026-03-15
 
 ### Added

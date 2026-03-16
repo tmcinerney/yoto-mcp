@@ -1,6 +1,20 @@
 # Deployment
 
-## Docker image
+Two transports are available:
+- **stdio** — via `npx`, ideal for local MCP clients (Claude Code, OpenClaw, Cursor)
+- **HTTP** — via Docker, ideal for remote/shared deployments
+
+## npm (stdio transport)
+
+Published to npm on every `v*` tag push. Run directly with `npx`:
+
+```bash
+YOTO_CLIENT_ID="your-client-id" npx -y yoto-mcp --stdio
+```
+
+Credentials are stored in `~/.config/yoto-mcp/accounts.json` by default.
+
+## Docker (HTTP transport)
 
 The image is published to `ghcr.io/tmcinerney/yoto-mcp` on every `v*` tag push. Multi-arch: `linux/amd64` and `linux/arm64`.
 
@@ -29,22 +43,32 @@ docker run -d \
 docker compose up -d
 ```
 
-## Verify
+### Verify
 
 ```bash
-# Check container is running
-docker ps | grep yoto-mcp
-
-# Check health
 curl http://localhost:3100/health
-
-# Check logs
 docker logs <container-name>
 ```
 
 ## MCP client configuration
 
-### Claude Code (`~/.claude/mcp.json`)
+### Claude Code — stdio (`~/.claude/mcp.json`)
+
+```json
+{
+  "mcpServers": {
+    "yoto-mcp": {
+      "command": "npx",
+      "args": ["-y", "yoto-mcp", "--stdio"],
+      "env": {
+        "YOTO_CLIENT_ID": "your-client-id"
+      }
+    }
+  }
+}
+```
+
+### Claude Code — HTTP (`~/.claude/mcp.json`)
 
 ```json
 {
@@ -58,6 +82,28 @@ docker logs <container-name>
 ```
 
 Replace `localhost` with the hostname or IP where the server is running.
+
+### OpenClaw (`openclaw.json` — ACPX plugin config)
+
+```json
+{
+  "plugins": {
+    "entries": {
+      "acpx": {
+        "mcpServers": {
+          "yoto-mcp": {
+            "command": "npx",
+            "args": ["-y", "yoto-mcp", "--stdio"],
+            "env": {
+              "YOTO_CLIENT_ID": "your-client-id"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 ## Authentication
 

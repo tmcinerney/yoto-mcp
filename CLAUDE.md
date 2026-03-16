@@ -34,8 +34,13 @@ Keep these in sync (see [CONTRIBUTING.md § Versioning](CONTRIBUTING.md#versioni
 | MCP server | `src/server.ts` → `McpServer({ version })` |
 | lockfile | `package-lock.json` |
 
-Tag `vX.Y.Z` triggers multi-arch Docker build + push to GHCR.
+Tag `vX.Y.Z` triggers multi-arch Docker build + push to GHCR, and `npm publish`.
+
+## Transport modes
+
+- `--stdio` flag: stdio transport for `npx` / local MCP clients
+- Default (no flag): streamable HTTP on configurable port for Docker / remote
 
 ## Deployment
 
-Docker container on GHCR. See [DEPLOY.md](DEPLOY.md) for Docker run/compose commands and MCP client configuration.
+Published to npm (`npx -y yoto-mcp --stdio`) and GHCR (Docker). See [DEPLOY.md](DEPLOY.md) for all options and MCP client configs.
