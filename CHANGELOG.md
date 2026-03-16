@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-16
+
+### Fixed
+- **Critical:** Card title placed at top level instead of `metadata.title` (titles were invisible)
+- **Critical:** `cardId` injected into update payload — prevents accidental card creation (duplicates)
+- **Critical:** Update now fetches existing card and merges — partial updates no longer wipe omitted fields
+- Preserve `refresh_token` when Auth0 omits it on refresh grant (prevents permanent auth failure)
+- Guard initial auth against missing refresh token
+- HTTP handler catches transport errors (prevents server crash on malformed requests)
+- Network errors in device code polling retry instead of killing auth flow
+- `JSON.parse` catch scoped to parsing only, not downstream errors
+- Validate `filePath` is absolute before reading (path traversal guard)
+- Reject conflicting `cardId` in update payload vs parameter
+
+### Added
+- MIME type detection from file extension (mp3, m4a, wav, ogg, flac, aac, wma)
+- Upload timeout via AbortController (5 minutes)
+- File size guard rejects files over 500MB before loading into memory
+- Port validation (NaN/out-of-range falls back to 3100)
+- `touchAccount` wired in `getSdk` — `lastUsed` timestamps now updated
+- Expired pending device codes pruned on each auth call
+- Graceful shutdown cleans up periodic refresh timer on SIGTERM/SIGINT
+- SDK cache checks token freshness before returning cached instance
+
+### Changed
+- Server version read from `package.json` instead of hardcoded
+- `update_card` tool description updated to reflect merge semantics
+- `TokenResponse.refresh_token` made optional to match Auth0 behavior
+
 ## [0.4.1] - 2026-03-15
 
 ### Changed
