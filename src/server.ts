@@ -9,7 +9,7 @@ import {
   type YotoCard,
 } from './tools/content.js';
 import { handleListDevices } from './tools/devices.js';
-import { handleListIcons } from './tools/icons.js';
+import { handleListIcons, handleSearchIcons } from './tools/icons.js';
 import { handleGetCard, handleListCards } from './tools/library.js';
 import { handleUploadAudio } from './tools/media.js';
 import type { ToolContext } from './tools/shared.js';
@@ -221,6 +221,24 @@ export function createServer(ctx?: ToolContext): McpServer {
       const result = await ctx.getSdk(args.account);
       if ('error' in result) return toolError(result.error);
       return handleListIcons(result.sdk);
+    },
+  );
+
+  server.registerTool(
+    'yoto_search_icons',
+    {
+      description:
+        'Search display icons by keyword. Matches against title and tags. Returns mediaId, yoto:# ref, title, tags, and preview URL.',
+      inputSchema: {
+        query: z.string().describe('Search keywords (e.g. "cat", "music note", "truck")'),
+        limit: z.number().optional().describe('Max results to return (default 20)'),
+        ...AccountParam,
+      },
+    },
+    async (args) => {
+      const result = await ctx.getSdk(args.account);
+      if ('error' in result) return toolError(result.error);
+      return handleSearchIcons(result.sdk, args);
     },
   );
 

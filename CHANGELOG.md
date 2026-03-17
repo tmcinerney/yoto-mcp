@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-17
+
+### Added
+- `yoto_search_icons` tool — keyword search over Yoto's 534 display icons by title and tags. Returns `yoto:#mediaId` refs ready for card `display.icon16x16` fields
+
 ## [0.5.5] - 2026-03-17
 
 ### Fixed

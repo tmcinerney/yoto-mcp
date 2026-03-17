@@ -49,6 +49,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, tooling, and relea
 | `yoto_upload_audio` | Upload audio file and wait for transcoding |
 | `yoto_list_devices` | List Yoto player devices |
 | `yoto_list_icons` | List available display icons |
+| `yoto_search_icons` | Search icons by keyword (title and tags) |
 
 ## License
 
