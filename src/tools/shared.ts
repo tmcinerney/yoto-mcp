@@ -59,3 +59,32 @@ export function toolError(message: string): CallToolResult {
 export function toolResult(data: unknown): CallToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
 }
+
+/** Extract HTTP status code from axios-style errors thrown by the Yoto SDK */
+function getStatusCode(err: unknown): number | undefined {
+  const e = err as { response?: { status?: number }; status?: number };
+  return e.response?.status ?? e.status;
+}
+
+/**
+ * Classify API errors and return actionable messages.
+ * - 401/403: token expired or revoked — prompt re-auth
+ * - 429: rate limited — include retry guidance
+ * - Other: pass through original message
+ */
+export function classifyApiError(operation: string, err: unknown): string {
+  const status = getStatusCode(err);
+  const base = err instanceof Error ? err.message : String(err);
+
+  switch (status) {
+    case 401:
+    case 403:
+      return `${operation}: Authentication failed (${status}). Token may be expired or revoked. Re-authenticate with yoto_auth.`;
+    case 429:
+      return `${operation}: Rate limited by Yoto API (429). Wait a moment and try again.`;
+    case 404:
+      return `${operation}: Resource not found (404).`;
+    default:
+      return `${operation}: ${base}`;
+  }
+}

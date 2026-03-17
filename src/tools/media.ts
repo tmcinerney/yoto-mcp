@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
-import { basename, extname, isAbsolute, normalize } from 'node:path';
+import { basename, isAbsolute, normalize } from 'node:path';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { YotoSdk } from '@yotoplay/yoto-sdk';
-import { toolError, toolResult } from './shared.js';
+import { classifyApiError, toolError, toolResult } from './shared.js';
 
 interface UploadAudioArgs {
   filePath: string;
@@ -22,22 +22,11 @@ interface TranscodeApiResponse {
   transcodedInfo?: { duration: number; fileSize: number };
 }
 
-// MIME map — avoids external dependency for Content-Type detection
-const AUDIO_MIME_TYPES: Record<string, string> = {
-  '.mp3': 'audio/mpeg',
-  '.m4a': 'audio/mp4',
-  '.mp4': 'audio/mp4',
-  '.wav': 'audio/wav',
-  '.ogg': 'audio/ogg',
-  '.flac': 'audio/flac',
-  '.aac': 'audio/aac',
-  '.wma': 'audio/x-ms-wma',
-};
-
-function getAudioMimeType(filePath: string): string {
-  const ext = extname(filePath).toLowerCase();
-  return AUDIO_MIME_TYPES[ext] ?? 'application/octet-stream';
-}
+// The Yoto SDK hardcodes Content-Type: "audio/mpeg" for all uploads.
+// The presigned S3 URL is generated expecting this value — a mismatch
+// causes the upload to appear to succeed but produces unplayable transcodes.
+// Yoto's transcoder detects the actual format regardless of Content-Type.
+const UPLOAD_CONTENT_TYPE = 'audio/mpeg';
 
 export const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500MB
 const UPLOAD_TIMEOUT_MS = 5 * 60_000;
@@ -114,7 +103,7 @@ export async function handleUploadAudio(
       try {
         const response = await fetch(upload.uploadUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': getAudioMimeType(normalizedPath) },
+          headers: { 'Content-Type': UPLOAD_CONTENT_TYPE },
           body: fileBuffer,
           signal: controller.signal,
         });
@@ -138,7 +127,6 @@ export async function handleUploadAudio(
       filename,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return toolError(`Failed to upload audio: ${message}`);
+    return toolError(classifyApiError('Failed to upload audio', err));
   }
 }

@@ -258,46 +258,31 @@ describe('handleUploadAudio', () => {
     );
   });
 
-  it('uses audio/mp4 Content-Type for .m4a files', async () => {
-    const sdk = createMockSdk();
-    const fileBuffer = Buffer.from('fake-m4a');
+  // The Yoto SDK hardcodes Content-Type: "audio/mpeg" for all uploads.
+  // We match this regardless of file extension — Yoto's transcoder detects
+  // the actual format. Using per-extension MIME types caused silent failures.
+  it('uses audio/mpeg Content-Type for all files regardless of extension', async () => {
+    for (const filePath of ['/tmp/audiobook.m4a', '/tmp/mystery.xyz', '/tmp/song.wav']) {
+      vi.clearAllMocks();
+      const sdk = createMockSdk();
+      const fileBuffer = Buffer.from(`fake-${filePath}`);
 
-    vi.mocked(readFile).mockResolvedValue(fileBuffer);
-    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
-      mockUploadUrl('https://s3.example.com/presigned'),
-    );
-    mockFetchOk();
-    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(mockTranscodeComplete('hash'));
+      vi.mocked(readFile).mockResolvedValue(fileBuffer);
+      vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
+        mockUploadUrl('https://s3.example.com/presigned'),
+      );
+      mockFetchOk();
+      vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(mockTranscodeComplete('hash'));
 
-    await handleUploadAudio(sdk, { filePath: '/tmp/audiobook.m4a' });
+      await handleUploadAudio(sdk, { filePath });
 
-    expect(fetch).toHaveBeenCalledWith(
-      'https://s3.example.com/presigned',
-      expect.objectContaining({
-        headers: { 'Content-Type': 'audio/mp4' },
-      }),
-    );
-  });
-
-  it('uses application/octet-stream for unknown extensions', async () => {
-    const sdk = createMockSdk();
-    const fileBuffer = Buffer.from('fake-unknown');
-
-    vi.mocked(readFile).mockResolvedValue(fileBuffer);
-    vi.mocked(sdk.media.getUploadUrlForTranscode).mockResolvedValue(
-      mockUploadUrl('https://s3.example.com/presigned'),
-    );
-    mockFetchOk();
-    vi.mocked(sdk.media.getTranscodedUpload).mockResolvedValue(mockTranscodeComplete('hash'));
-
-    await handleUploadAudio(sdk, { filePath: '/tmp/mystery.xyz' });
-
-    expect(fetch).toHaveBeenCalledWith(
-      'https://s3.example.com/presigned',
-      expect.objectContaining({
-        headers: { 'Content-Type': 'application/octet-stream' },
-      }),
-    );
+      expect(fetch).toHaveBeenCalledWith(
+        'https://s3.example.com/presigned',
+        expect.objectContaining({
+          headers: { 'Content-Type': 'audio/mpeg' },
+        }),
+      );
+    }
   });
 
   // --- Batch 3: Upload timeout ---

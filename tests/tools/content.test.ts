@@ -140,6 +140,120 @@ describe('handleCreateCard — title placement', () => {
   });
 });
 
+describe('handleCreateCard — device playback defaults', () => {
+  // These fields are required by the Yoto device firmware for playback.
+  // Discovered by comparing cards from the official MYO portal vs our API.
+  it('sets activity, restricted, version, and config defaults on new cards', async () => {
+    const sdk = createMockSdk();
+    vi.mocked(sdk.content.updateCard).mockResolvedValue(MOCK_CARD);
+
+    await handleCreateCard(sdk, { title: 'Test' });
+
+    const cardArg = vi.mocked(sdk.content.updateCard).mock.calls[0][0];
+    expect(cardArg.content).toHaveProperty('activity', 'yoto_Player');
+    expect(cardArg.content).toHaveProperty('restricted', true);
+    expect(cardArg.content).toHaveProperty('version', '1');
+    expect(cardArg.content?.config).toEqual(
+      expect.objectContaining({ resumeTimeout: 2592000, onlineOnly: false }),
+    );
+  });
+});
+
+describe('handleUpdateCard — device playback defaults', () => {
+  it('applies format: opus and channels: stereo to tracks missing them', async () => {
+    const sdk = createMockSdk();
+    const existing: YotoCard = {
+      content: {
+        chapters: [
+          {
+            key: '00',
+            title: 'Ch 1',
+            tracks: [{ key: '01', title: 'Track 1', trackUrl: 'yoto:#abc', type: 'audio' }],
+          },
+        ],
+      },
+      metadata: {},
+    };
+    vi.mocked(sdk.content.getCard).mockResolvedValue(existing);
+    vi.mocked(sdk.content.updateCard).mockResolvedValue(existing);
+
+    await handleUpdateCard(sdk, { cardId: 'card-1', card: existing });
+
+    const sent = vi.mocked(sdk.content.updateCard).mock.calls[0][0];
+    const track = (sent.content?.chapters as Array<{ tracks: Array<Record<string, unknown>> }>)[0]
+      .tracks[0];
+    expect(track.format).toBe('opus');
+    expect(track.channels).toBe('stereo');
+  });
+
+  it('normalizes chapter keys to zero-based two-digit format', async () => {
+    const sdk = createMockSdk();
+    const existing: YotoCard = {
+      content: {
+        chapters: [
+          { key: '001', title: 'Ch 1', tracks: [] },
+          { key: '002', title: 'Ch 2', tracks: [] },
+        ],
+      },
+      metadata: {},
+    };
+    vi.mocked(sdk.content.getCard).mockResolvedValue(existing);
+    vi.mocked(sdk.content.updateCard).mockResolvedValue(existing);
+
+    await handleUpdateCard(sdk, { cardId: 'card-1', card: existing });
+
+    const sent = vi.mocked(sdk.content.updateCard).mock.calls[0][0];
+    const chapters = sent.content?.chapters as Array<{ key: string }>;
+    expect(chapters[0].key).toBe('00');
+    expect(chapters[1].key).toBe('01');
+  });
+
+  it('sets card-level activity and config defaults on update', async () => {
+    const sdk = createMockSdk();
+    const existing: YotoCard = {
+      content: { chapters: [] },
+      metadata: {},
+    };
+    vi.mocked(sdk.content.getCard).mockResolvedValue(existing);
+    vi.mocked(sdk.content.updateCard).mockResolvedValue(existing);
+
+    await handleUpdateCard(sdk, { cardId: 'card-1', card: existing });
+
+    const sent = vi.mocked(sdk.content.updateCard).mock.calls[0][0];
+    expect(sent.content).toHaveProperty('activity', 'yoto_Player');
+    expect(sent.content).toHaveProperty('restricted', true);
+    expect(sent.content).toHaveProperty('version', '1');
+    expect(sent.content?.config).toEqual(
+      expect.objectContaining({ onlineOnly: false }),
+    );
+  });
+
+  it('does not overwrite existing format if already set', async () => {
+    const sdk = createMockSdk();
+    const existing: YotoCard = {
+      content: {
+        chapters: [
+          {
+            key: '00',
+            title: 'Ch 1',
+            tracks: [{ key: '01', title: 'Track', trackUrl: 'yoto:#abc', type: 'audio', format: 'mp3' }],
+          },
+        ],
+      },
+      metadata: {},
+    };
+    vi.mocked(sdk.content.getCard).mockResolvedValue(existing);
+    vi.mocked(sdk.content.updateCard).mockResolvedValue(existing);
+
+    await handleUpdateCard(sdk, { cardId: 'card-1', card: existing });
+
+    const sent = vi.mocked(sdk.content.updateCard).mock.calls[0][0];
+    const track = (sent.content?.chapters as Array<{ tracks: Array<Record<string, unknown>> }>)[0]
+      .tracks[0];
+    expect(track.format).toBe('mp3');
+  });
+});
+
 describe('handleUpdateCard — cardId injection', () => {
   it('injects cardId into the card object before calling SDK', async () => {
     const sdk = createMockSdk();
