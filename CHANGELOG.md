@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-03-17
+
+### Fixed
+- **Critical:** SDK cache returned stale SDK after re-authentication — cached instances now track which token they were built with, and `yoto_auth_complete` explicitly invalidates the cache
+- Corrected comments: `format: "opus"` on tracks is the only playback-critical field; card-level content fields (activity, restricted, version) are sensible defaults but not required for device playback
+
+### Changed
+- SDK cache stores `{ sdk, token }` tuples instead of bare SDK instances for accurate cache invalidation
+
 ## [0.5.4] - 2026-03-16
 
 ### Fixed

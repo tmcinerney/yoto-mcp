@@ -53,7 +53,14 @@ export function createServer(ctx?: ToolContext): McpServer {
       },
     },
     async (args) => {
-      return handleAuthComplete(ctx.store, ctx.authConfig, args);
+      const result = await handleAuthComplete(ctx.store, ctx.authConfig, args);
+      // Invalidate cached SDK so next tool call uses the fresh token
+      const text = result.content?.[0];
+      if (!result.isError && text && 'text' in text) {
+        const parsed = JSON.parse(text.text) as { userId?: string };
+        if (parsed.userId) ctx.invalidateSdk(parsed.userId);
+      }
+      return result;
     },
   );
 

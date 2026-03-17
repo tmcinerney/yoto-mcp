@@ -223,9 +223,7 @@ describe('handleUpdateCard — device playback defaults', () => {
     expect(sent.content).toHaveProperty('activity', 'yoto_Player');
     expect(sent.content).toHaveProperty('restricted', true);
     expect(sent.content).toHaveProperty('version', '1');
-    expect(sent.content?.config).toEqual(
-      expect.objectContaining({ onlineOnly: false }),
-    );
+    expect(sent.content?.config).toEqual(expect.objectContaining({ onlineOnly: false }));
   });
 
   it('does not overwrite existing format if already set', async () => {
@@ -236,7 +234,9 @@ describe('handleUpdateCard — device playback defaults', () => {
           {
             key: '00',
             title: 'Ch 1',
-            tracks: [{ key: '01', title: 'Track', trackUrl: 'yoto:#abc', type: 'audio', format: 'mp3' }],
+            tracks: [
+              { key: '01', title: 'Track', trackUrl: 'yoto:#abc', type: 'audio', format: 'mp3' },
+            ],
           },
         ],
       },

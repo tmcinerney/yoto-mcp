@@ -10,10 +10,9 @@ export interface YotoCard {
   [key: string]: unknown;
 }
 
-// Required card-level content fields for device playback.
-// Discovered by comparing cards created via the official MYO portal against
-// cards created via the API — the device firmware requires these fields to
-// identify the card type and select the correct player/decoder.
+// Card-level content defaults matching the official MYO portal.
+// These are sensible defaults but NOT required for device playback.
+// The only playback-critical field is `format: "opus"` on tracks.
 const MYO_CARD_DEFAULTS = {
   activity: 'yoto_Player',
   restricted: true,
@@ -25,9 +24,11 @@ const MYO_CONFIG_DEFAULTS = {
   onlineOnly: false, // enables offline/device playback
 } as const;
 
-// Yoto transcodes all uploads to Opus. The format field tells the device
-// which decoder to use — "aac" causes silent playback failure on device
-// even though the app (more forgiving) plays it fine.
+// PLAYBACK-CRITICAL: Yoto transcodes all uploads to Opus. The format field
+// tells the device firmware which decoder to use. "aac" causes tracks to
+// skip on the physical device (the phone app is more forgiving and plays
+// either). Confirmed by isolated test: same card, one track "opus" played,
+// remaining "aac" tracks skipped.
 const TRACK_FORMAT = 'opus';
 
 interface CreateCardArgs {

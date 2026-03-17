@@ -139,12 +139,33 @@ describe('ToolContext', () => {
   it('caches SDK instances per account', async () => {
     const account = makeAccount();
     await store.setAccount(account);
-    // Return same token as account.accessToken so cache hit works
-    vi.mocked(ensureFreshToken).mockResolvedValue(account.accessToken);
+    vi.mocked(ensureFreshToken).mockResolvedValue('fresh-token');
 
     await ctx.getSdk();
     await ctx.getSdk();
     expect(createYotoSdk).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces cached SDK when token changes (e.g. after re-auth)', async () => {
+    const account = makeAccount();
+    await store.setAccount(account);
+    vi.mocked(ensureFreshToken).mockResolvedValue('old-token');
+
+    await ctx.getSdk();
+    expect(createYotoSdk).toHaveBeenCalledTimes(1);
+
+    // Simulate re-auth: store gets new token, ensureFreshToken returns it
+    await store.updateTokens(
+      'user-1',
+      'new-token',
+      'new-refresh',
+      new Date(Date.now() + 86_400_000).toISOString(),
+    );
+    vi.mocked(ensureFreshToken).mockResolvedValue('new-token');
+
+    await ctx.getSdk();
+    expect(createYotoSdk).toHaveBeenCalledTimes(2);
+    expect(createYotoSdk).toHaveBeenLastCalledWith(expect.objectContaining({ jwt: 'new-token' }));
   });
 
   it('recreates SDK when invalidated', async () => {

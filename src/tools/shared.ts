@@ -8,7 +8,7 @@ type SdkResult = { sdk: YotoSdk; account: { userId: string; email: string } } | 
 
 // SDK instances cached per account, invalidated on token refresh
 export class ToolContext {
-  private sdkCache = new Map<string, YotoSdk>();
+  private sdkCache = new Map<string, { sdk: YotoSdk; token: string }>();
 
   constructor(
     readonly store: TokenStore,
@@ -37,13 +37,13 @@ export class ToolContext {
     }
 
     const cached = this.sdkCache.get(account.userId);
-    if (cached && account.accessToken === token) {
-      return { sdk: cached, account: { userId: account.userId, email: account.email } };
+    if (cached && cached.token === token) {
+      return { sdk: cached.sdk, account: { userId: account.userId, email: account.email } };
     }
 
-    // Token was refreshed or no cache — create new SDK instance
+    // Token changed or no cache — create new SDK instance
     const sdk = createYotoSdk({ jwt: token });
-    this.sdkCache.set(account.userId, sdk);
+    this.sdkCache.set(account.userId, { sdk, token });
     return { sdk, account: { userId: account.userId, email: account.email } };
   }
 
